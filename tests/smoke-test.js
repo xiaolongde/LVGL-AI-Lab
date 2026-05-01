@@ -108,18 +108,50 @@ function checkSessions() {
 }
 
 // ============================================================================
-// 阶段 2: 构建 size 检查（stub）
+// 阶段 2: 构建 size 检查
 // ============================================================================
 function checkBuildSize() {
-    console.log('=== 阶段 2: 构建 size（stub）===');
+    console.log('=== 阶段 2: 构建 size ===');
     const elf = path.join(ROOT, 'build', 'lvgl-ai-lab.elf');
     if (!fs.existsSync(elf)) {
-        console.log(`  SKIP: ${elf} 不存在（CMake 工程尚未建立或未编译）`);
+        console.log(`  SKIP: ${elf} 不存在（先 cmake --build build）`);
         return true;
     }
-    // 占位：未来用 arm-none-eabi-size 解析 + 阈值 (Flash<200K, RAM<40K)
-    console.log('  TODO: arm-none-eabi-size 解析 + 阈值检查');
-    return true;
+    const FLASH_LIMIT = 200 * 1024;   // 256K - 56K 余量
+    const RAM_LIMIT   = 40  * 1024;   // 48K - 8K 余量给 stack/heap
+
+    let out;
+    try {
+        out = execSync(`arm-none-eabi-size ${elf}`, { encoding: 'utf8' });
+    } catch (e) {
+        console.error('  ERR: arm-none-eabi-size 不在 PATH 或失败:', e.message);
+        return false;
+    }
+    // 输出: "   text    data     bss     dec     hex filename"
+    //       "   1680      12    3108    4800    12c0 ..."
+    const lines = out.trim().split('\n');
+    const cols = lines[1].trim().split(/\s+/);
+    const text = parseInt(cols[0], 10);
+    const data = parseInt(cols[1], 10);
+    const bss  = parseInt(cols[2], 10);
+    const flashUsed = text + data;       // .text + .data 都烧到 Flash
+    const ramUsed   = data + bss;        // RAM 中 .data + .bss
+    const pct = (n, lim) => `${(n / lim * 100).toFixed(2)}%`;
+
+    let ok = true;
+    if (flashUsed > FLASH_LIMIT) {
+        console.error(`  FAIL: Flash ${flashUsed} > ${FLASH_LIMIT} (${pct(flashUsed, FLASH_LIMIT)})`);
+        ok = false;
+    } else {
+        console.log(`  PASS: Flash ${flashUsed} / ${FLASH_LIMIT} (${pct(flashUsed, FLASH_LIMIT)})`);
+    }
+    if (ramUsed > RAM_LIMIT) {
+        console.error(`  FAIL: RAM ${ramUsed} > ${RAM_LIMIT} (${pct(ramUsed, RAM_LIMIT)})`);
+        ok = false;
+    } else {
+        console.log(`  PASS: RAM ${ramUsed} / ${RAM_LIMIT} (${pct(ramUsed, RAM_LIMIT)})`);
+    }
+    return ok;
 }
 
 // ============================================================================
