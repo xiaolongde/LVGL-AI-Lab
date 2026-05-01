@@ -62,6 +62,16 @@ KIT 自带 7 个 MDK-ARM 工程，但本项目目标是 **CMake + OpenOCD + GDB*
 迁移路径：抄 Keil 工程的 `Components/`、`Core/`、`GD32/` 三个源码目录 → 写 `CMakeLists.txt` 替换 `MDK-ARM/`，
 linker script 自己写（参考 firmware lib 里的 `.s` 启动文件）。
 
+## 烧录 + 调试 — ST-Link
+
+用户实物烧录器: **ST-Link V2/V3**（SWD 接到 P1 header: SWDIO=PA13, SWDCLK=PA14, NRST, GND, 3V3）。
+
+- OpenOCD 配置: `interface stlink` + `transport select hla_swd` + `source [find target/stm32f1x.cfg]`
+- 关键 override: GD32F303RC 的 Flash 是 256K，stm32f1x.cfg 默认 128K——必须 override，否则烧录后半段会失败。在 cfg 里加: `set FLASH_SIZE 0x40000` 或在脚本里 `flash bank ... auto 0x08000000 0x40000 0 0 $_TARGETNAME`
+- pyOCD 替代: `pyocd flash -t stm32f103rc <elf>`（同样以 STM32F103 为底）
+- **Log 通道**：ST-Link 不支持 RTT（RTT 是 SEGGER J-Link 专有），走 **USART1 (PA9 TX, 115200)**，主机用 USB-TTL 串口工具或 putty/minicom 抓
+- 备用 log: 板上 USB Type-C 走 USB CDC 虚拟串口（KIT/`1. TOOLS & DOC/USB_Virtual_Com_Port_Driver`）—— v0.2 备选，v0.1 用 USART1 简单
+
 ## 后续维护
 
 - 资料库本身不会自动更新——AI 在 case 执行中读到新东西，写到对应文件下方"实践笔记"段

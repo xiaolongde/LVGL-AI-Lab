@@ -16,7 +16,8 @@ updated: 2026-05-01
 - ✅ KIT 解压：`D:\projects\GD\GD32F303RxT6 KIT\3. SDK\extracted\` 已解压
 - ✅ References 资料库：`docs/references/{INDEX, mcu, board, screens, sdk}.md`
 - ✅ 工具链已装：arm-none-eabi-gcc 12.2 / CMake / Ninja / Python 3.11（PATH 里都在）
-- ⚠ 烧录器：用户需告知手上烧录器型号（DAP-Link / J-Link / ST-Link / WCH-Link？）—— 决定 OpenOCD 配置 + 是否能用 RTT
+- ✅ **烧录器：ST-Link**（OpenOCD interface stlink + transport hla_swd + target stm32f1x，flash size override 256K）
+- ✅ **Log 通道：USART1（PA9 TX, 115200, 8N1）**——ST-Link 不支持 RTT，走串口 + USB-TTL 工具/putty 抓
 
 ## 验收
 - ✅ `cmake -B build -G Ninja && cmake --build build` 一次过，产 `build/lvgl-ai-lab.elf` + size 报告（`arm-none-eabi-size`）
@@ -36,14 +37,14 @@ updated: 2026-05-01
 4. **OpenOCD 配置 + flash 脚本**：`tools/openocd-gd32f303.cfg`（GD32F303 借 stm32f1x target，但 flash size 256K 要 override；也可试 pyOCD）；`tools/flash.sh` 一行命令封装
 5. **GDB attach + 断点验证**：`tools/gdb.sh` 启动 GDB + 加载 elf + connect to OpenOCD；在 main 设断点，单步几行
 6. **RGB LED 闪**：用 references/board.md 的引脚（PC0/PC1/PC2）写 GPIO init + SysTick delay；R→G→B 轮换 0.3s 各
-7. **日志通道**：J-Link 在场就用 RTT（最优）；DAP-Link/ST-Link 退化用 USART1（PA9 TX，参考 `Examples/USART/`），主机用 minicom/PuTTY
+7. **日志通道（USART1）**：抄 `Examples/USART/Components/BSP/usart.c` init（PA9=TX, PA10=RX, 115200 8N1）+ `printf` 重定向到 USART_DR（GCC 走 `_write` syscall，重定义 `_write` 调 USART 发送）；主机端 USB-TTL 模块（用户需有，常见 CP2102/CH340）连 PA9/PA10 + GND，putty 或 minicom 抓
 8. **录 baseline 视频 + qa-report**
 
 ## 风险 / Open Questions
-- **烧录器型号未确认**：DAP-Link / J-Link / 板载 CMSIS-DAP / 还是裸 SWD 引脚 + 外置烧录器？这决定 OpenOCD/pyOCD/J-Link Tools 走哪条路 + 能不能用 RTT。**用户需在 sub-task 4 前告知**
 - GD32 启动汇编 GCC 版可能需要从 Keil .s 改写（Keil 用 `THUMB`、`PRESERVE8`、`AREA RESET`，GCC 用 `.section .isr_vector` 等）—— 经典坑，方法论 datapoint
-- OpenOCD 上游对 GD32F30x 的兼容：可能需要在 cfg 里 `set FLASH_SIZE 0x40000` override 不然只擦 128K
+- OpenOCD 上游 stm32f1x.cfg 默认 flash 128K——**必须 override 到 256K**（`set FLASH_SIZE 0x40000`），否则烧到 128K 后失败
 - 链接脚本写错最常见：忘记 `_estack`、`_etext`、`_sidata`、`_sdata`、`_edata`、`_sbss`、`_ebss` 这些符号，启动汇编里找不到会硬件 fault
+- USART1 (PA9 TX) 出来是 TTL 电平 3.3V，**不能直接接电脑 RS232**，需要 USB-TTL 适配器（CP2102/CH340/FT232 任一）
 
 ## 依赖
 无（v0.1 起点）
