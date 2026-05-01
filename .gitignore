@@ -1,0 +1,17 @@
+build/
+out/
+*.o
+*.obj
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.d
+.vscode/
+.idea/
+.vs/
+*.swp
+*.bak
+.DS_Store
+Thumbs.db
