@@ -22,3 +22,26 @@
 
 ## 自测
 <!-- 自动维护：最近 QA 报告链接 -->
+
+## Sessions Discipline（B 路径双轨记录）
+
+本项目对 AI 写代码强制 **pre/post 自评**——每个 sub-task 动手前写 pre（任务理解 + 计划 + 卡点预判），完成后写 post（实际遇到 + 修复路径 + 学到的）。pre/post 文件存到 `docs/_meta/sessions/`，commit message 必须含 `session: <slug>` 关联。
+
+零摩擦工具：
+
+```bash
+tools/session.sh new <slug>     # 任务开始前：创建 pre 文件骨架
+# ...动手做事 + commit（commit msg 含 session: <slug>）
+tools/session.sh close <slug>   # 任务完成后：创建 matching post 文件
+tools/session.sh list           # 列出所有未 close 的 pre（提醒）
+```
+
+Smoke gate 强制：
+
+```bash
+node tests/smoke-test.js
+```
+
+阶段 1 检查 sessions 完整性：每个触及 `src/` `tests/` `tools/` 的非 merge commit 必须含 `session: <slug>` + 对应 pre/post 双件齐。纯 `docs/` commit 豁免。阶段 2/3 在 CMake 工程建立后激活（构建 size + 静态分析）。
+
+详细约定见 [`../CLAUDE.md`](../CLAUDE.md)。
