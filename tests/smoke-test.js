@@ -30,7 +30,7 @@ function checkSessions() {
     let log;
     try {
         log = execSync(
-            `git log --since=${SINCE} --no-merges --format=%H%x09%s`,
+            `git log -z --since=${SINCE} --no-merges --format=%H%x09%B`,
             { cwd: ROOT, encoding: 'utf8' }
         );
     } catch (e) {
@@ -38,8 +38,9 @@ function checkSessions() {
         return false;
     }
 
-    const lines = log.trim().split('\n').filter(Boolean);
-    if (lines.length === 0) {
+    // -z 用 \0 分隔 commit
+    const records = log.split('\0').filter(Boolean);
+    if (records.length === 0) {
         console.log('  （since=' + SINCE + ' 无 commit）');
         return true;
     }
@@ -48,9 +49,11 @@ function checkSessions() {
     let exempt = 0;
     let checked = 0;
 
-    for (const line of lines) {
-        const [sha, ...subjParts] = line.split('\t');
-        const subject = subjParts.join('\t');
+    for (const record of records) {
+        const tabIdx = record.indexOf('\t');
+        const sha = record.substring(0, tabIdx);
+        const fullMsg = record.substring(tabIdx + 1);
+        const subject = fullMsg.split('\n')[0];
 
         // 取 commit 触及的文件列表
         const files = execSync(
@@ -71,8 +74,8 @@ function checkSessions() {
         }
         checked++;
 
-        // 必须含 session: <slug>
-        const m = subject.match(/session:\s*([a-z0-9-]+)/);
+        // 必须含 session: <slug>（subject 或 body 任一处）
+        const m = fullMsg.match(/session:\s*([a-z0-9-]+)/);
         if (!m) {
             console.error(`  FAIL [${sha.substring(0,7)}] 触及 src/tests/tools 但无 'session: <slug>': ${subject}`);
             violations++;
