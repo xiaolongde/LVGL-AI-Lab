@@ -119,8 +119,12 @@ function checkBuildSize() {
     }
     // 阈值历史:
     //  - st1 (v0.1 setup): Flash 200K / RAM 40K（LVGL 前定的）
-    //  - sb (LVGL 加入): Flash 240K / RAM 40K（LVGL 即使裁剪后约 130K，需放宽）
-    const FLASH_LIMIT = 240 * 1024;
+    //  - sb (LVGL 加入): Flash 240K / RAM 40K（LVGL 裁剪后约 130K）
+    //  - sc (sysmon+spinner+RTC): Flash 250K / RAM 40K
+    //    sc 强制开 LV_DRAW_SW_COMPLEX=1（arc/spinner 依赖）+ LV_USE_SYSMON=1（PERF/MEM overlay）
+    //    + LV_MEM_SIZE 16K（多 widget heap），三者都不可省 → 阈值再放宽 10K
+    //    余量 = 256K - 250K = 6K（够小幅迭代）；继续超 → v0.2 优化（小字体 / drop sysmon）
+    const FLASH_LIMIT = 250 * 1024;
     const RAM_LIMIT   = 40  * 1024;
 
     let out;
