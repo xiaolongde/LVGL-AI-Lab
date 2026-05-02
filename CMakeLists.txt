@@ -77,6 +77,7 @@ add_library(lvgl STATIC ${LVGL_SRC})
 target_include_directories(lvgl PUBLIC
     ${LVGL_DIR}                      # 让 application include "lvgl.h"
     ${LV_PORT_DIR}                   # 让 lvgl 内部 #include "lv_conf.h" 找到我们的 config
+    ${FATFS_DIR}/inc                 # lv_fs_fatfs.c #include "ff.h"
 )
 
 target_compile_definitions(lvgl PUBLIC

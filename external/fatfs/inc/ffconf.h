@@ -98,6 +98,8 @@
 
 
 #define FF_USE_LFN		1
+/* needed: Windows-created files often have LFN entries even for 8.3 names;
+   also required to load resources with names >8.3 (e.g. montserrat_28.bin) */
 
 #define FF_MAX_LFN		255
 /* The FF_USE_LFN switches the support for LFN (long file name).

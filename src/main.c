@@ -1,6 +1,6 @@
 /*!
     \file    main.c
-    \brief   v0.2 sh-fatfs-port: SD bring-up + FatFs mount + read README.TXT
+    \brief   v0.2 si-lvgl-fs-drv: LVGL + lv_fs_fatfs ('S:' drive over SDIO + FatFs)
 */
 
 #include "gd32f30x.h"
@@ -17,8 +17,12 @@
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
 
+#include "lvgl.h"
+#include "lv_port_disp.h"
+
+extern void lv_fs_fatfs_init(void); /* declared in lvgl/src/libs/fsdrv/lv_fs_fatfs.c */
+
 static FATFS s_fs;
-static FIL   s_fp;
 static char  s_path[4]; /* "0:/" */
 
 static const char * sd_err_str(sd_error_enum e)
@@ -27,9 +31,19 @@ static const char * sd_err_str(sd_error_enum e)
         case SD_OK: return "OK";
         case SD_CMD_RESP_TIMEOUT: return "CMD_TIMEOUT";
         case SD_DATA_TIMEOUT: return "DATA_TIMEOUT";
-        case SD_ERROR: return "GENERIC_ERR";
         default: return "ERR";
     }
+}
+
+/* full SD init pipeline (matches KIT example sd_io_init) */
+static sd_error_enum sd_full_init(sd_card_info_struct * info)
+{
+    sd_error_enum err = sd_init();
+    if (err == SD_OK) err = sd_card_information_get(info);
+    if (err == SD_OK) err = sd_card_select_deselect(info->card_rca);
+    if (err == SD_OK) err = sd_bus_mode_config(SDIO_BUSMODE_4BIT);
+    if (err == SD_OK) err = sd_transfer_mode_config(SD_POLLING_MODE);
+    return err;
 }
 
 int main(void)
@@ -40,95 +54,135 @@ int main(void)
     LCD_Init();
     LCD_Fill(0, 0, LCD_Width - 1, LCD_Height - 1, BLACK);
 
+    /* boot diagnostic banner via KIT TFTLCD (before LVGL takes over) */
     POINT_COLOR = WHITE;
     BACK_COLOR  = BLACK;
-    LCD_ShowString(0, 0, 320, 16, 16, "v0.2 sh-fatfs-port");
-    LCD_ShowString(0, 20, 320, 16, 12, "SD + FatFs R0.13c");
+    LCD_ShowString(0, 0, 320, 16, 12, "v0.2 si: SD+FatFs+LVGL");
 
     char buf[80];
 
-    /* === step 1: SD full init pipeline (matches KIT example sd_io_init) === */
-    LCD_ShowString(0, 40, 320, 16, 12, "1) sd_io_init pipeline...");
-    sd_error_enum err = sd_init();
+    /* === SD full init pipeline === */
     sd_card_info_struct info;
-    if (err == SD_OK) err = sd_card_information_get(&info);
-    if (err == SD_OK) err = sd_card_select_deselect(info.card_rca);   /* CMD7 → transfer */
-    if (err == SD_OK) err = sd_bus_mode_config(SDIO_BUSMODE_4BIT);    /* 4-bit bus */
-    if (err == SD_OK) err = sd_transfer_mode_config(SD_POLLING_MODE); /* polling */
-    if (err != SD_OK) {
+    sd_error_enum sderr = sd_full_init(&info);
+    if (sderr != SD_OK) {
         POINT_COLOR = RED;
-        sprintf(buf, "SD FAIL: %s", sd_err_str(err));
-        LCD_ShowString(0, 55, 320, 16, 12, buf);
+        sprintf(buf, "SD FAIL: %s", sd_err_str(sderr));
+        LCD_ShowString(0, 16, 320, 16, 12, buf);
         while (1) { delay(500); }
     }
-    POINT_COLOR = GREEN;
-    LCD_ShowString(0, 55, 320, 16, 12, "   SD OK (transfer+4bit)");
 
-    uint32_t cap_kb = sd_card_capacity_get();
-    POINT_COLOR = WHITE;
-    sprintf(buf, "   cap=%lu MB", (unsigned long)(cap_kb / 1024u));
-    LCD_ShowString(0, 70, 320, 16, 12, buf);
+    /* === FATFS link + mount === */
+    if (FATFS_LinkDriver(&sd_diskio_drv, s_path) != 0) {
+        POINT_COLOR = RED;
+        LCD_ShowString(0, 16, 320, 16, 12, "FATFS_LinkDriver fail");
+        while (1) { delay(500); }
+    }
+    if (f_mount(&s_fs, s_path, 1) != FR_OK) {
+        POINT_COLOR = RED;
+        LCD_ShowString(0, 16, 320, 16, 12, "f_mount fail");
+        while (1) { delay(500); }
+    }
 
-    /* === step 1.5: raw sector 0 read (isolate FatFs glue vs SDIO data path) === */
-    LCD_ShowString(0, 90, 320, 16, 12, "1.5) raw sd_block_read s0...");
-    static uint32_t raw[128] __attribute__((aligned(4))); /* 512B */
-    sd_error_enum rerr = sd_block_read(raw, 0, 512);
-    POINT_COLOR = (rerr == SD_OK) ? GREEN : RED;
-    sprintf(buf, "   rd=%s sig=%02X %02X (want 55 AA)",
-            sd_err_str(rerr),
-            ((uint8_t *)raw)[510], ((uint8_t *)raw)[511]);
-    LCD_ShowString(0, 105, 320, 16, 12, buf);
-    POINT_COLOR = WHITE;
-    sprintf(buf, "   first8: %02X%02X%02X%02X %02X%02X%02X%02X",
-            ((uint8_t *)raw)[0], ((uint8_t *)raw)[1], ((uint8_t *)raw)[2], ((uint8_t *)raw)[3],
-            ((uint8_t *)raw)[4], ((uint8_t *)raw)[5], ((uint8_t *)raw)[6], ((uint8_t *)raw)[7]);
-    LCD_ShowString(0, 120, 320, 16, 12, buf);
+    /* === LVGL init === */
+    lv_init();
+    lv_port_disp_init();
+    lv_fs_fatfs_init(); /* registers 'S:' drive backed by FatFs */
 
-    /* === step 2: FATFS_LinkDriver === */
-    LCD_ShowString(0, 138, 320, 16, 12, "2) link...");
-    uint8_t link_res = FATFS_LinkDriver(&sd_diskio_drv, s_path);
-    POINT_COLOR = (link_res == 0) ? GREEN : RED;
-    sprintf(buf, "   link=%u path=\"%s\"", link_res, s_path);
-    LCD_ShowString(0, 153, 320, 16, 12, buf);
+    /* === Build LVGL UI === */
+    lv_obj_t * scr = lv_screen_active();
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x0A0E1A), 0);
 
-    /* === step 3: f_mount === */
-    POINT_COLOR = WHITE;
-    LCD_ShowString(0, 168, 320, 16, 12, "3) f_mount...");
-    FRESULT fr = f_mount(&s_fs, s_path, 1); /* 1 = mount immediately */
-    POINT_COLOR = (fr == FR_OK) ? GREEN : RED;
-    sprintf(buf, "   mount=%d (FR_OK=0)", (int)fr);
-    LCD_ShowString(0, 183, 320, 16, 12, buf);
+    lv_obj_t * title = lv_label_create(scr);
+    lv_label_set_text(title, "si: lv_fs S: drive");
+    lv_obj_set_style_text_color(title, lv_color_hex(0xD4A373), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 4, 4);
 
-    if (fr == FR_OK) {
-        /* === step 4: f_open + f_read README.TXT === */
-        POINT_COLOR = WHITE;
-        fr = f_open(&s_fp, "0:/README.TXT", FA_READ);
-        char content[40];
-        UINT br = 0;
-        if (fr == FR_OK) {
-            fr = f_read(&s_fp, content, sizeof(content) - 1, &br);
-            content[br] = 0;
-            f_close(&s_fp);
-            for (UINT i = 0; i < br; i++) {
-                if (content[i] < 0x20 || content[i] > 0x7E) content[i] = '.';
-            }
+    /* === Pick first regular file from root, then read it via lv_fs === */
+    static char picked[80] = "S:/";
+    static char picked_fatfs[80] = "0:/";
+    static int  found_file = 0;
+    {
+        DIR dir;
+        FILINFO fno;
+        FRESULT pr = f_opendir(&dir, "0:/");
+
+        lv_obj_t * dir_lbl = lv_label_create(scr);
+        lv_obj_set_style_text_color(dir_lbl, lv_color_hex(0xFFFF00), 0);
+        lv_obj_align(dir_lbl, LV_ALIGN_TOP_LEFT, 4, 80);
+        lv_obj_set_width(dir_lbl, 312);
+        lv_label_set_long_mode(dir_lbl, LV_LABEL_LONG_WRAP);
+
+        if (pr != FR_OK) {
+            lv_label_set_text_fmt(dir_lbl, "opendir fail: %d", (int)pr);
         } else {
-            content[0] = 0;
-        }
-        POINT_COLOR = (fr == FR_OK) ? GREEN : RED;
-        sprintf(buf, "4) open=%d br=%u", (int)fr, (unsigned)br);
-        LCD_ShowString(0, 200, 320, 16, 12, buf);
-        if (br > 0) {
-            POINT_COLOR = YELLOW;
-            LCD_ShowString(0, 215, 320, 16, 12, content);
+            while (1) {
+                pr = f_readdir(&dir, &fno);
+                if (pr != FR_OK || fno.fname[0] == 0) break;
+                if ((fno.fattrib & AM_DIR) == 0 && fno.fname[0] != '.') {
+                    /* found a regular file */
+                    snprintf(picked + 3, sizeof(picked) - 3, "%s", fno.fname);
+                    snprintf(picked_fatfs + 3, sizeof(picked_fatfs) - 3, "%s", fno.fname);
+                    found_file = 1;
+                    break;
+                }
+            }
+            f_closedir(&dir);
+            if (found_file) {
+                lv_label_set_text_fmt(dir_lbl, "picked: %s (sz=%lu)",
+                                      picked, (unsigned long)fno.fsize);
+            } else {
+                lv_label_set_text(dir_lbl, "no regular file in root");
+            }
         }
     }
 
-    /* heartbeat blink */
-    int blink = 0;
+    /* === Read first-found file through LVGL fs API === */
+    lv_fs_file_t f;
+    lv_fs_res_t r = found_file
+        ? lv_fs_open(&f, picked, LV_FS_MODE_RD)
+        : LV_FS_RES_NOT_EX;
+
+    lv_obj_t * status = lv_label_create(scr);
+    lv_obj_set_style_text_color(status, lv_color_hex(0x4AD98E), 0);
+    lv_obj_align(status, LV_ALIGN_TOP_LEFT, 4, 24);
+
+    lv_obj_t * content = lv_label_create(scr);
+    lv_obj_set_style_text_color(content, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_align(content, LV_ALIGN_TOP_LEFT, 4, 50);
+    lv_obj_set_width(content, 312);
+    lv_label_set_long_mode(content, LV_LABEL_LONG_WRAP);
+
+    if (r != LV_FS_RES_OK) {
+        lv_label_set_text_fmt(status, "lv_fs_open: ERR %d", (int)r);
+        lv_label_set_text(content, "no S:/README.TXT?");
+        lv_obj_set_style_text_color(status, lv_color_hex(0xFF5050), 0);
+    } else {
+        char data[64];
+        uint32_t br = 0;
+        r = lv_fs_read(&f, data, sizeof(data) - 1, &br);
+        lv_fs_close(&f);
+
+        data[br] = 0;
+        for (uint32_t i = 0; i < br; i++) {
+            if (data[i] < 0x20 || data[i] > 0x7E) data[i] = '.';
+        }
+
+        lv_label_set_text_fmt(status, "lv_fs_read: %d bytes (res=%d)", (int)br, (int)r);
+        lv_label_set_text(content, data);
+    }
+
+    /* === heartbeat label to prove LVGL render loop alive === */
+    lv_obj_t * tick = lv_label_create(scr);
+    lv_obj_set_style_text_color(tick, lv_color_hex(0x5AC8FA), 0);
+    lv_obj_align(tick, LV_ALIGN_BOTTOM_LEFT, 4, -4);
+
+    uint32_t n = 0;
+    char tickbuf[16];
     while (1) {
-        blink ^= 1;
-        LCD_Fill(310, 0, 319, 4, blink ? GREEN : BLACK);
-        delay(500);
+        n++;
+        sprintf(tickbuf, "tick %lu", (unsigned long)n);
+        lv_label_set_text(tick, tickbuf);
+        lv_timer_handler();
+        delay(50);
     }
 }

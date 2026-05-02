@@ -471,7 +471,7 @@
      *  - LV_LOG_LEVEL_ERROR    Log only critical issues, when system may fail.
      *  - LV_LOG_LEVEL_USER     Log only custom log messages added by the user.
      *  - LV_LOG_LEVEL_NONE     Do not log anything. */
-    #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
+    #define LV_LOG_LEVEL LV_LOG_LEVEL_NONE
 
     /** - 1: Print log with 'printf';
      *  - 0: User needs to register a callback with `lv_log_register_print_cb()`. */
@@ -589,9 +589,10 @@
 
 /** Use obj property set/get API. */
 #define LV_USE_OBJ_PROPERTY 0
+#define LV_USE_OBJ_NAME 0
 
 /** Enable property name support. */
-#define LV_USE_OBJ_PROPERTY_NAME 1
+#define LV_USE_OBJ_PROPERTY_NAME 0
 
 /* Enable the multi-touch gesture recognition feature */
 /* Gesture recognition requires the use of floats */
@@ -777,15 +778,15 @@
 
 #define LV_USE_ARC        1
 
-#define LV_USE_ARCLABEL        1
+#define LV_USE_ARCLABEL        0
 
 #define LV_USE_BAR        1
 
 #define LV_USE_BUTTON        1
 
-#define LV_USE_BUTTONMATRIX        1
+#define LV_USE_BUTTONMATRIX        0
 
-#define LV_USE_CALENDAR        1
+#define LV_USE_CALENDAR        0
 #if LV_USE_CALENDAR
     #define LV_CALENDAR_WEEK_STARTS_MONDAY 0
     #if LV_CALENDAR_WEEK_STARTS_MONDAY
@@ -800,19 +801,19 @@
     #define LV_USE_CALENDAR_CHINESE 0
 #endif  /*LV_USE_CALENDAR*/
 
-#define LV_USE_CANVAS        1
+#define LV_USE_CANVAS        0
 
-#define LV_USE_CHART        1
+#define LV_USE_CHART        0
 
-#define LV_USE_CHECKBOX        1
+#define LV_USE_CHECKBOX        0
 
-#define LV_USE_DROPDOWN   1   /**< Requires: lv_label */
+#define LV_USE_DROPDOWN   0   /**< Requires: lv_label */
 
 #define LV_USE_IMAGE      1   /**< Requires: lv_label */
 
-#define LV_USE_IMAGEBUTTON        1
+#define LV_USE_IMAGEBUTTON        0
 
-#define LV_USE_KEYBOARD        1
+#define LV_USE_KEYBOARD        0
 
 #define LV_USE_LABEL      1
 #if LV_USE_LABEL
@@ -821,46 +822,46 @@
     #define LV_LABEL_WAIT_CHAR_COUNT 3  /**< The count of wait chart */
 #endif
 
-#define LV_USE_LED        1
+#define LV_USE_LED        0
 
-#define LV_USE_LINE        1
+#define LV_USE_LINE        0
 
-#define LV_USE_LIST        1
+#define LV_USE_LIST        0
 
 #define LV_USE_LOTTIE     0  /**< Requires: lv_canvas, thorvg */
 
-#define LV_USE_MENU        1
+#define LV_USE_MENU        0
 
-#define LV_USE_MSGBOX        1
+#define LV_USE_MSGBOX        0
 
-#define LV_USE_ROLLER     1   /**< Requires: lv_label */
+#define LV_USE_ROLLER     0   /**< Requires: lv_label */
 
-#define LV_USE_SCALE        1
+#define LV_USE_SCALE        0
 
-#define LV_USE_SLIDER     1   /**< Requires: lv_bar */
+#define LV_USE_SLIDER     0   /**< Requires: lv_bar */
 
-#define LV_USE_SPAN        1
+#define LV_USE_SPAN        0
 #if LV_USE_SPAN
     /** A line of text can contain this maximum number of span descriptors. */
     #define LV_SPAN_SNIPPET_STACK_SIZE 64
 #endif
 
-#define LV_USE_SPINBOX        1
+#define LV_USE_SPINBOX        0
 
 #define LV_USE_SPINNER        1
 
-#define LV_USE_SWITCH        1
+#define LV_USE_SWITCH        0
 
-#define LV_USE_TABLE        1
+#define LV_USE_TABLE        0
 
-#define LV_USE_TABVIEW        1
+#define LV_USE_TABVIEW        0
 
-#define LV_USE_TEXTAREA   1   /**< Requires: lv_label */
+#define LV_USE_TEXTAREA   0   /**< Requires: lv_label */
 #if LV_USE_TEXTAREA != 0
     #define LV_TEXTAREA_DEF_PWD_SHOW_TIME 1500    /**< [ms] */
 #endif
 
-#define LV_USE_TILEVIEW        1
+#define LV_USE_TILEVIEW        0
 
 #define LV_USE_WIN        1
 
@@ -938,10 +939,10 @@
 #endif
 
 /** API for FATFS (needs to be added separately). Uses f_open, f_read, etc. */
-#define LV_USE_FS_FATFS 0
+#define LV_USE_FS_FATFS 1
 #if LV_USE_FS_FATFS
-    #define LV_FS_FATFS_LETTER '\0'     /**< Set an upper-case driver-identifier letter for this driver (e.g. 'A'). */
-    #define LV_FS_FATFS_PATH ""         /**< Set the working directory. File/directory paths will be appended to it. */
+    #define LV_FS_FATFS_LETTER 'S'      /**< 'S' for SD card */
+    #define LV_FS_FATFS_PATH "0:"       /**< prefix prepended by lv_fs_fatfs.c — matches FATFS_LinkDriver path */
     #define LV_FS_FATFS_CACHE_SIZE 0    /**< >0 to cache this number of bytes in lv_fs_read() */
 #endif
 
