@@ -117,8 +117,11 @@ function checkBuildSize() {
         console.log(`  SKIP: ${elf} 不存在（先 cmake --build build）`);
         return true;
     }
-    const FLASH_LIMIT = 200 * 1024;   // 256K - 56K 余量
-    const RAM_LIMIT   = 40  * 1024;   // 48K - 8K 余量给 stack/heap
+    // 阈值历史:
+    //  - st1 (v0.1 setup): Flash 200K / RAM 40K（LVGL 前定的）
+    //  - sb (LVGL 加入): Flash 240K / RAM 40K（LVGL 即使裁剪后约 130K，需放宽）
+    const FLASH_LIMIT = 240 * 1024;
+    const RAM_LIMIT   = 40  * 1024;
 
     let out;
     try {

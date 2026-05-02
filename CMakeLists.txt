@@ -24,6 +24,8 @@ endif()
 # ---------------------------------------------------------------------------
 set(VENDOR_DIR  ${CMAKE_SOURCE_DIR}/vendor/gd32f30x)
 set(SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
+set(LVGL_DIR    ${CMAKE_SOURCE_DIR}/external/lvgl)
+set(LV_PORT_DIR ${SRC_DIR}/lvgl_port)
 set(LINKER_FILE ${CMAKE_SOURCE_DIR}/linker/gd32f303rc.ld)
 set(STARTUP_FILE ${CMAKE_SOURCE_DIR}/startup/startup_gd32f303rc.S)
 
@@ -63,12 +65,44 @@ target_compile_options(gd32f30x PRIVATE
 )
 
 # ---------------------------------------------------------------------------
+# LVGL v9.5.0 (vendored as git submodule under external/lvgl)
+# ---------------------------------------------------------------------------
+file(GLOB_RECURSE LVGL_SRC CONFIGURE_DEPENDS
+    "${LVGL_DIR}/src/*.c"
+)
+
+add_library(lvgl STATIC ${LVGL_SRC})
+
+target_include_directories(lvgl PUBLIC
+    ${LVGL_DIR}                      # 让 application include "lvgl.h"
+    ${LV_PORT_DIR}                   # 让 lvgl 内部 #include "lv_conf.h" 找到我们的 config
+)
+
+target_compile_definitions(lvgl PUBLIC
+    LV_CONF_INCLUDE_SIMPLE=1         # use #include "lv_conf.h" instead of relative path
+)
+
+# 抑制 LVGL 自身的 -Wall 警告（vendor 代码，我们不改）
+target_compile_options(lvgl PRIVATE
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-unused-function
+    -Wno-sign-compare
+    -Wno-implicit-fallthrough
+    -Wno-shift-negative-value
+    -Wno-old-style-declaration
+    -Wno-pointer-sign
+    -Wno-type-limits
+)
+
+# ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
 file(GLOB APP_SRC CONFIGURE_DEPENDS
     "${SRC_DIR}/*.c"
     "${SRC_DIR}/bsp/*.c"
     "${SRC_DIR}/devices/*/*.c"
+    "${LV_PORT_DIR}/*.c"
 )
 
 add_executable(lvgl-ai-lab.elf
@@ -80,9 +114,10 @@ target_include_directories(lvgl-ai-lab.elf PRIVATE
     ${SRC_DIR}
     ${SRC_DIR}/bsp
     ${SRC_DIR}/devices/lcd
+    ${LV_PORT_DIR}
 )
 
-target_link_libraries(lvgl-ai-lab.elf PRIVATE gd32f30x)
+target_link_libraries(lvgl-ai-lab.elf PRIVATE gd32f30x lvgl)
 
 target_link_options(lvgl-ai-lab.elf PRIVATE
     -T${LINKER_FILE}

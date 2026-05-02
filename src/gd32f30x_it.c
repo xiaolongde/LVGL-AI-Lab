@@ -137,7 +137,11 @@ void PendSV_Handler(void)
     \param[out] none
     \retval     none
 */
+/* Forward decl to avoid pulling lvgl.h into IT TU (circular include nightmare) */
+extern void lv_tick_inc(uint32_t tick_period);
+
 void SysTick_Handler(void)
 {
     delay_decrement();
+    lv_tick_inc(1);              /* 1ms SysTick → 推 LVGL 时钟 */
 }
