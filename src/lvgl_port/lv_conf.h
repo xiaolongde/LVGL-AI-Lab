@@ -145,8 +145,10 @@
  * "Transformed layers" (if `transform_angle/zoom` are set) use larger buffers
  * and can't be drawn in chunks. */
 
-/** The target buffer size for simple layer chunks. */
-#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (24 * 1024)    /**< [bytes]*/
+/** The target buffer size for simple layer chunks.
+ *  必须 ≤ LV_MEM_SIZE，否则 transform layer 分配 OOM 触发渲染半屏 bug。
+ *  LV_MEM_SIZE = 16K，这里缩到 8K 留余量给其他 LVGL 内部分配。 */
+#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (8 * 1024)     /**< [bytes]*/
 
 /* Limit the max allocated memory for simple and transformed layers.
  * It should be at least `LV_DRAW_LAYER_SIMPLE_BUF_SIZE` sized but if transformed layers are also used
@@ -1099,7 +1101,7 @@
 #define LV_USE_SNAPSHOT 0
 
 /** 1: Enable system monitor component */
-#define LV_USE_SYSMON   1
+#define LV_USE_SYSMON   0
 #if LV_USE_SYSMON
     /** Get the idle percentage. E.g. uint32_t my_get_idle(void); */
     #define LV_SYSMON_GET_IDLE lv_os_get_idle_percent

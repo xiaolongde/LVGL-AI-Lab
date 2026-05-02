@@ -29,6 +29,32 @@ Mode: Builder
 - **真硬件 bring-up 做种子 case**——选了 AI 传统上最弱的一环作为起点，无论成功失败信息量都最大
 - 用户在 Gudsen 做电机控制 STM32H7（参见 user_work_context memory）——这块方法论可直接反哺工作中下一代产品（电机直驱赛车模拟器有 GUI 需求）
 
+## v0.2 北极星：Hands-off Verification（2026-05-02 用户拍板）
+
+v0.1 期间用户仍需"看屏报亮没亮"——这是项目元命题里没消除的 user-in-the-loop。**真正的"完全 AI 构建"= AI 自验收**，零用户介入。
+
+### 用户介入点 → 自动化路径
+| 介入点 | v0.1 现状 | v0.2 自动化 |
+|---|---|---|
+| 烧录 | pyOCD 自动 ✅ | done |
+| 复位 | pyOCD 自动 ✅ | done |
+| **屏视觉确认** | 用户报"亮/没亮" | **GDB 读 partial buffer + 像素 hash / 模板匹配**（关键技术）；fallback：USB UVC camera 拍屏 |
+| FPS / 性能数字 | 用户报 sysmon overlay 上 FPS | GDB 读 sysmon 内部 lv_label 的 buffer 解析 ASCII |
+| Hardfault / 卡死 | 用户报"卡住了" | autonomous-dev-loop 加 watchdog：周期 GDB halt 看 PC，连续 N 次同 PC = 死循环 → 自动诊断 → BFS backtrack |
+| 设计变更 | 用户即兴提"加动画/删 banner" | spec/design 阶段就明确所有验收门，运行期不接受新需求 |
+
+### 验证实验：清空上下文重做
+**Step 1**：v0.1 跑通后（含本 design + references + lessons），把 conversation context 清空。
+**Step 2**：新会话只给 AI：design.md + references/ + lessons/ + project CLAUDE.md。
+**Step 3**：AI 自驱重做 LVGL-AI-Lab 工程，目标 0 用户介入完成。
+**Step 4**：测量：用户介入次数、总耗时、AI 自查捕获错误数、最终 demo 是否通过 baseline 对比。
+**Step 5**：若 0 介入失败 → retro 找方法论缺口 → 迭代 → 重做实验。
+
+### Autonomous Mode 纪律（lesson LTRYSL）
+- 决策点：AI 默认推荐路径继续，不暂停问 A/B/C
+- 失败兜底：sub-task retry ≥ 3 次失败 → 回 parent BFS 检索其他 branch
+- 全部 branch blocked → BLOCKED 状态报告 + 等手工介入
+
 ## Constraints
 
 - 硬件：手上已有 GD32F303RCT6 开发板 + 1.5"-2.4" 240x240 或 320x240 SPI 屏（无触控）
