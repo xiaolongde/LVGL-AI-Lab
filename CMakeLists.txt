@@ -68,6 +68,7 @@ target_compile_options(gd32f30x PRIVATE
 file(GLOB APP_SRC CONFIGURE_DEPENDS
     "${SRC_DIR}/*.c"
     "${SRC_DIR}/bsp/*.c"
+    "${SRC_DIR}/devices/*/*.c"
 )
 
 add_executable(lvgl-ai-lab.elf
@@ -78,6 +79,7 @@ add_executable(lvgl-ai-lab.elf
 target_include_directories(lvgl-ai-lab.elf PRIVATE
     ${SRC_DIR}
     ${SRC_DIR}/bsp
+    ${SRC_DIR}/devices/lcd
 )
 
 target_link_libraries(lvgl-ai-lab.elf PRIVATE gd32f30x)
