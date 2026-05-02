@@ -72,7 +72,7 @@
      *  - 8KB 初版（hello world）够用
      *  - sysmon+spinner+arc+多 label 同时启用后 8KB OOM → TLSF 死循环（GDB 抓到
      *    PC 卡 lv_draw_unit_draw_letter → insert_free_block）→ 16KB */
-    #define LV_MEM_SIZE (16 * 1024U)         /**< [bytes] */
+    #define LV_MEM_SIZE (24 * 1024U)         /**< [bytes] — bumped for binfont heap pressure */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0

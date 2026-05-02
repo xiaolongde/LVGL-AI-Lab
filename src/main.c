@@ -1,6 +1,6 @@
 /*!
     \file    main.c
-    \brief   v0.2 si-lvgl-fs-drv: LVGL + lv_fs_fatfs ('S:' drive over SDIO + FatFs)
+    \brief   v0.2 sj-lv-font-conv-pipeline: load Montserrat 28px from SD via lv_binfont_create
 */
 
 #include "gd32f30x.h"
@@ -19,11 +19,48 @@
 
 #include "lvgl.h"
 #include "lv_port_disp.h"
+#include "src/font/binfont_loader/lv_binfont_loader.h"
 
-extern void lv_fs_fatfs_init(void); /* declared in lvgl/src/libs/fsdrv/lv_fs_fatfs.c */
+extern void lv_fs_fatfs_init(void);
+
+/* embedded font blob — auto-installed to SD on first boot */
+extern const uint8_t  montserrat_28_bin_data[];
+extern const uint32_t montserrat_28_bin_size;
 
 static FATFS s_fs;
-static char  s_path[4]; /* "0:/" */
+static char  s_path[4];
+
+static void install_font_if_missing(void)
+{
+    FIL fp;
+    FRESULT fr = f_open(&fp, "0:/montserrat_28.bin", FA_READ);
+    if (fr == FR_OK) {
+        f_close(&fp);
+        LCD_ShowString(0, 16, 320, 16, 12, "font: already on SD");
+        return;
+    }
+    LCD_ShowString(0, 16, 320, 16, 12, "font: installing to SD...");
+    fr = f_open(&fp, "0:/montserrat_28.bin", FA_WRITE | FA_CREATE_ALWAYS);
+    if (fr != FR_OK) {
+        char b[40]; sprintf(b, "install open fail: %d", (int)fr);
+        POINT_COLOR = RED;
+        LCD_ShowString(0, 30, 320, 16, 12, b);
+        return;
+    }
+    UINT bw = 0;
+    fr = f_write(&fp, montserrat_28_bin_data, montserrat_28_bin_size, &bw);
+    f_close(&fp);
+    char b[60];
+    if (fr == FR_OK && bw == montserrat_28_bin_size) {
+        POINT_COLOR = GREEN;
+        sprintf(b, "install OK: %u B", bw);
+    } else {
+        POINT_COLOR = RED;
+        sprintf(b, "install FAIL: w=%d br=%u/%lu", (int)fr, bw, (unsigned long)montserrat_28_bin_size);
+    }
+    LCD_ShowString(0, 30, 320, 16, 12, b);
+    POINT_COLOR = WHITE;
+}
 
 static const char * sd_err_str(sd_error_enum e)
 {
@@ -35,7 +72,6 @@ static const char * sd_err_str(sd_error_enum e)
     }
 }
 
-/* full SD init pipeline (matches KIT example sd_io_init) */
 static sd_error_enum sd_full_init(sd_card_info_struct * info)
 {
     sd_error_enum err = sd_init();
@@ -54,14 +90,12 @@ int main(void)
     LCD_Init();
     LCD_Fill(0, 0, LCD_Width - 1, LCD_Height - 1, BLACK);
 
-    /* boot diagnostic banner via KIT TFTLCD (before LVGL takes over) */
     POINT_COLOR = WHITE;
     BACK_COLOR  = BLACK;
-    LCD_ShowString(0, 0, 320, 16, 12, "v0.2 si: SD+FatFs+LVGL");
+    LCD_ShowString(0, 0, 320, 16, 12, "v0.2 sj: SD bin font");
 
     char buf[80];
 
-    /* === SD full init pipeline === */
     sd_card_info_struct info;
     sd_error_enum sderr = sd_full_init(&info);
     if (sderr != SD_OK) {
@@ -71,7 +105,6 @@ int main(void)
         while (1) { delay(500); }
     }
 
-    /* === FATFS link + mount === */
     if (FATFS_LinkDriver(&sd_diskio_drv, s_path) != 0) {
         POINT_COLOR = RED;
         LCD_ShowString(0, 16, 320, 16, 12, "FATFS_LinkDriver fail");
@@ -83,95 +116,97 @@ int main(void)
         while (1) { delay(500); }
     }
 
-    /* === LVGL init === */
+    /* hands-off: install font to SD on first boot */
+    install_font_if_missing();
+
     lv_init();
     lv_port_disp_init();
-    lv_fs_fatfs_init(); /* registers 'S:' drive backed by FatFs */
+    lv_fs_fatfs_init();
 
-    /* === Build LVGL UI === */
     lv_obj_t * scr = lv_screen_active();
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x0A0E1A), 0);
 
-    lv_obj_t * title = lv_label_create(scr);
-    lv_label_set_text(title, "si: lv_fs S: drive");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xD4A373), 0);
-    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 4, 4);
+    /* boot status (small font) */
+    lv_obj_t * status = lv_label_create(scr);
+    lv_obj_set_style_text_color(status, lv_color_hex(0xD4A373), 0);
+    lv_obj_align(status, LV_ALIGN_TOP_LEFT, 4, 4);
 
-    /* === Pick first regular file from root, then read it via lv_fs === */
-    static char picked[80] = "S:/";
-    static char picked_fatfs[80] = "0:/";
-    static int  found_file = 0;
+    /* === pre-flight: list root dir + verify font file via lv_fs === */
     {
-        DIR dir;
-        FILINFO fno;
-        FRESULT pr = f_opendir(&dir, "0:/");
+        lv_obj_t * dl = lv_label_create(scr);
+        lv_obj_set_style_text_color(dl, lv_color_hex(0xFFFF00), 0);
+        lv_obj_align(dl, LV_ALIGN_TOP_LEFT, 4, 22);
+        lv_obj_set_width(dl, 312);
+        lv_label_set_long_mode(dl, LV_LABEL_LONG_WRAP);
 
-        lv_obj_t * dir_lbl = lv_label_create(scr);
-        lv_obj_set_style_text_color(dir_lbl, lv_color_hex(0xFFFF00), 0);
-        lv_obj_align(dir_lbl, LV_ALIGN_TOP_LEFT, 4, 80);
-        lv_obj_set_width(dir_lbl, 312);
-        lv_label_set_long_mode(dir_lbl, LV_LABEL_LONG_WRAP);
-
-        if (pr != FR_OK) {
-            lv_label_set_text_fmt(dir_lbl, "opendir fail: %d", (int)pr);
-        } else {
-            while (1) {
-                pr = f_readdir(&dir, &fno);
-                if (pr != FR_OK || fno.fname[0] == 0) break;
-                if ((fno.fattrib & AM_DIR) == 0 && fno.fname[0] != '.') {
-                    /* found a regular file */
-                    snprintf(picked + 3, sizeof(picked) - 3, "%s", fno.fname);
-                    snprintf(picked_fatfs + 3, sizeof(picked_fatfs) - 3, "%s", fno.fname);
-                    found_file = 1;
-                    break;
-                }
+        DIR dir; FILINFO fno; FRESULT pr = f_opendir(&dir, "0:/");
+        char list[160]; int off = snprintf(list, sizeof(list), "ls 0:/  ");
+        if (pr == FR_OK) {
+            int n = 0;
+            while (n < 6) {
+                if (f_readdir(&dir, &fno) != FR_OK || fno.fname[0] == 0) break;
+                int rem = sizeof(list) - off - 1;
+                int w = snprintf(list + off, rem, "[%s] ", fno.fname);
+                if (w < 0 || w >= rem) break;
+                off += w; n++;
             }
             f_closedir(&dir);
-            if (found_file) {
-                lv_label_set_text_fmt(dir_lbl, "picked: %s (sz=%lu)",
-                                      picked, (unsigned long)fno.fsize);
-            } else {
-                lv_label_set_text(dir_lbl, "no regular file in root");
-            }
         }
+        lv_label_set_text(dl, list);
+
+        /* Direct lv_fs probe + dump first 8 bytes */
+        lv_obj_t * fl = lv_label_create(scr);
+        lv_obj_set_style_text_color(fl, lv_color_hex(0xFFFF00), 0);
+        lv_obj_align(fl, LV_ALIGN_TOP_LEFT, 4, 60);
+        lv_obj_set_width(fl, 312);
+        lv_label_set_long_mode(fl, LV_LABEL_LONG_WRAP);
+        lv_fs_file_t probe;
+        lv_fs_res_t fr = lv_fs_open(&probe, "S:/montserrat_28.bin", LV_FS_MODE_RD);
+        static char fbuf[160];
+        if (fr == LV_FS_RES_OK) {
+            uint8_t hdr[12];
+            uint32_t br = 0;
+            lv_fs_read(&probe, hdr, 12, &br);
+            uint32_t sz = 0;
+            lv_fs_seek(&probe, 0, LV_FS_SEEK_END);
+            lv_fs_tell(&probe, &sz);
+            lv_fs_close(&probe);
+            sprintf(fbuf, "fs OK sz=%lu hdr=%02X%02X%02X%02X %c%c%c%c v=%02X%02X%02X%02X",
+                    (unsigned long)sz,
+                    hdr[0], hdr[1], hdr[2], hdr[3],
+                    hdr[4], hdr[5], hdr[6], hdr[7],
+                    hdr[8], hdr[9], hdr[10], hdr[11]);
+        } else {
+            sprintf(fbuf, "lv_fs_open ERR %d", (int)fr);
+        }
+        lv_label_set_text(fl, fbuf);
     }
 
-    /* === Read first-found file through LVGL fs API === */
-    lv_fs_file_t f;
-    lv_fs_res_t r = found_file
-        ? lv_fs_open(&f, picked, LV_FS_MODE_RD)
-        : LV_FS_RES_NOT_EX;
+    /* === load Montserrat 28px from SD via lv_binfont === */
+    lv_font_t * font_big = lv_binfont_create("S:/montserrat_28.bin");
 
-    lv_obj_t * status = lv_label_create(scr);
-    lv_obj_set_style_text_color(status, lv_color_hex(0x4AD98E), 0);
-    lv_obj_align(status, LV_ALIGN_TOP_LEFT, 4, 24);
-
-    lv_obj_t * content = lv_label_create(scr);
-    lv_obj_set_style_text_color(content, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_align(content, LV_ALIGN_TOP_LEFT, 4, 50);
-    lv_obj_set_width(content, 312);
-    lv_label_set_long_mode(content, LV_LABEL_LONG_WRAP);
-
-    if (r != LV_FS_RES_OK) {
-        lv_label_set_text_fmt(status, "lv_fs_open: ERR %d", (int)r);
-        lv_label_set_text(content, "no S:/README.TXT?");
+    if (font_big == NULL) {
+        lv_label_set_text(status, "lv_binfont_create FAIL");
         lv_obj_set_style_text_color(status, lv_color_hex(0xFF5050), 0);
     } else {
-        char data[64];
-        uint32_t br = 0;
-        r = lv_fs_read(&f, data, sizeof(data) - 1, &br);
-        lv_fs_close(&f);
+        lv_label_set_text(status, "lv_binfont 28px LOADED");
+        lv_obj_set_style_text_color(status, lv_color_hex(0x4AD98E), 0);
 
-        data[br] = 0;
-        for (uint32_t i = 0; i < br; i++) {
-            if (data[i] < 0x20 || data[i] > 0x7E) data[i] = '.';
-        }
+        /* === BIG time text using SD-loaded font === */
+        lv_obj_t * time_lbl = lv_label_create(scr);
+        lv_obj_set_style_text_font(time_lbl, font_big, 0);
+        lv_obj_set_style_text_color(time_lbl, lv_color_hex(0xFFFFFF), 0);
+        lv_label_set_text(time_lbl, "12:34");
+        lv_obj_align(time_lbl, LV_ALIGN_CENTER, 0, 0);
 
-        lv_label_set_text_fmt(status, "lv_fs_read: %d bytes (res=%d)", (int)br, (int)r);
-        lv_label_set_text(content, data);
+        /* small subtitle */
+        lv_obj_t * sub = lv_label_create(scr);
+        lv_obj_set_style_text_color(sub, lv_color_hex(0x808080), 0);
+        lv_label_set_text(sub, "loaded from S:/montserrat_28.bin");
+        lv_obj_align(sub, LV_ALIGN_CENTER, 0, 24);
     }
 
-    /* === heartbeat label to prove LVGL render loop alive === */
+    /* heartbeat */
     lv_obj_t * tick = lv_label_create(scr);
     lv_obj_set_style_text_color(tick, lv_color_hex(0x5AC8FA), 0);
     lv_obj_align(tick, LV_ALIGN_BOTTOM_LEFT, 4, -4);
