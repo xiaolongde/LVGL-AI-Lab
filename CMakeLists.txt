@@ -114,6 +114,7 @@ target_include_directories(lvgl-ai-lab.elf PRIVATE
     ${SRC_DIR}
     ${SRC_DIR}/bsp
     ${SRC_DIR}/devices/lcd
+    ${SRC_DIR}/devices/sd
     ${LV_PORT_DIR}
 )
 
