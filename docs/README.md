@@ -3,25 +3,37 @@
 > 用"完全 AI 构建一块基于 GD32F303 + LVGL 的智能手表"作为 case study，反向沉淀**AI + 嵌入式 GUI 开发最佳实践方法论**（Playbook + 脚手架 + 能力边界报告 三件套）。手表是载体，方法论是真正交付物。
 
 ## 状态
-当前阶段：立项；v0.1 进行中（种子 case：GD32F303 + 240x240 SPI 静态表盘）
+**v0.1 完成**（2026-05-02）：仿华为 GT3 watchface demo on GD32F303 + ST7789V3 1.47" 320×172 + LVGL v9.5.0 + RTC。
+- Card 1 ✅ 最小可闭环调试系统（CMake + GCC + pyOCD + GDB）
+- Card 2 ✅ LCD bring-up + LVGL 移植 + RTC + 仿 GT3 watchface
+- Lessons: [`docs/lessons/`](lessons/) (5 项目特定) + 6 跨项目 meta lessons in vault
+- Capability Report: [`docs/capability-report/v0.1.md`](capability-report/v0.1.md)
+- QA Report: [`docs/qa-reports/2026-05-02-card2-watchface.md`](qa-reports/2026-05-02-card2-watchface.md)
+
+**下一步 v0.2**：SD 卡 + FATFS 支持，让 GUI 资源（字体 / 图片 / themes）从 SD 加载，突破 256K Flash 限制。同时 hands-off 自动化（GDB 读 buf 替代用户视觉确认）。
 
 ## 平台
 - MCU: GD32F303RCT6（Cortex-M4F, 256KB Flash, 48KB SRAM, 120MHz, 无 2D 加速）
-- 屏: 1.5"-2.4" 240x240 / 320x240 SPI（无触控）
-- LVGL: partial buffer (5-10KB) 模式
+- 屏: ST7789V3 1.47" **320×172** SPI2（无触控）
+- LVGL: v9.5.0 partial buffer 8KB + LV_MEM 16KB
+- 烧录：ST-Link/V2 + pyOCD（target stm32f103rc 兼容驱动 GD32F303）
 
 ## 路径选择
 **Approach B — 双轨记录强方法论**：每个 AI 子任务前后强制写 pre/post 自评到 `docs/_meta/sessions/`，每周用户 retro 把素材抽到 Playbook 章节。详见 [`docs/designs/2026-05-01-AI嵌入式GUI方法论-design.md`](designs/2026-05-01-AI嵌入式GUI方法论-design.md)。
 
 ## 设计文档
 <!-- 自动维护：由 /office-hours 产出后刷新 -->
-- [[designs/2026-05-01-AI嵌入式GUI方法论-design]] — 项目 v0 设计（APPROVED 2026-05-01）
+- [[designs/2026-05-01-AI嵌入式GUI方法论-design]] — 项目 v0 设计（APPROVED 2026-05-01；2026-05-02 加入 v0.2 hands-off 北极星）
+- [[designs/2026-05-02-watchface-spec-v1]] — GT3 仿表盘 Figma-级 spec
 
 ## 实现计划
 <!-- 自动维护：由 writing-plans 产出后刷新 -->
+- [[plans/2026-05-01-card1-minimal-debuggable]] ✅ done
+- [[plans/2026-05-01-card2-lvgl-watch-face]] ✅ done
 
 ## 自测
 <!-- 自动维护：最近 QA 报告链接 -->
+- [[qa-reports/2026-05-02-card2-watchface]] — Card 2 GT3 watchface sign-off ✅
 
 ## Sessions Discipline（B 路径双轨记录）
 
