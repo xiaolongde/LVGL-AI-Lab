@@ -26,6 +26,7 @@ set(VENDOR_DIR  ${CMAKE_SOURCE_DIR}/vendor/gd32f30x)
 set(SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
 set(LVGL_DIR    ${CMAKE_SOURCE_DIR}/external/lvgl)
 set(LV_PORT_DIR ${SRC_DIR}/lvgl_port)
+set(FATFS_DIR   ${CMAKE_SOURCE_DIR}/external/fatfs)
 set(LINKER_FILE ${CMAKE_SOURCE_DIR}/linker/gd32f303rc.ld)
 set(STARTUP_FILE ${CMAKE_SOURCE_DIR}/startup/startup_gd32f303rc.S)
 
@@ -96,6 +97,31 @@ target_compile_options(lvgl PRIVATE
 )
 
 # ---------------------------------------------------------------------------
+# FatFs R0.13c (vendored from KIT under external/fatfs)
+# ---------------------------------------------------------------------------
+file(GLOB FATFS_SRC CONFIGURE_DEPENDS
+    "${FATFS_DIR}/src/*.c"
+)
+
+add_library(fatfs STATIC ${FATFS_SRC})
+
+target_include_directories(fatfs PUBLIC
+    ${FATFS_DIR}/inc
+)
+
+# fatfs needs to link gd32 (for gd32f30x.h transitively if our diskio uses it)
+target_link_libraries(fatfs PUBLIC gd32f30x)
+
+target_compile_options(fatfs PRIVATE
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-unused-function
+    -Wno-sign-compare
+    -Wno-implicit-fallthrough
+    -Wno-old-style-declaration
+)
+
+# ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
 file(GLOB APP_SRC CONFIGURE_DEPENDS
@@ -118,7 +144,7 @@ target_include_directories(lvgl-ai-lab.elf PRIVATE
     ${LV_PORT_DIR}
 )
 
-target_link_libraries(lvgl-ai-lab.elf PRIVATE gd32f30x lvgl)
+target_link_libraries(lvgl-ai-lab.elf PRIVATE gd32f30x lvgl fatfs)
 
 target_link_options(lvgl-ai-lab.elf PRIVATE
     -T${LINKER_FILE}
