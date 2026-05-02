@@ -1,0 +1,39 @@
+# gdb-init.txt — non-interactive GDB script for st4 验证
+# Usage:
+#   先在另一终端: tools/gdb-server.sh
+#   然后: arm-none-eabi-gdb -batch -x tools/gdb-init.txt build/lvgl-ai-lab.elf
+
+set confirm off
+set pagination off
+set print pretty on
+
+# Connect to pyocd gdbserver
+target extended-remote :3333
+
+# Reset + halt
+monitor reset halt
+
+# Re-load .elf to chip (确保我们调试的代码与 chip 上一致)
+load
+
+# Break in main + run
+break main
+continue
+
+# 命中 main 后 dump 状态
+echo \n=== Reached breakpoint, dump state ===\n
+info registers pc sp lr
+info locals
+info breakpoints
+
+# 单步 2 次
+echo \n=== Step 2 instructions ===\n
+stepi
+info registers pc
+stepi
+info registers pc
+
+# Detach 干净
+echo \n=== Detach ===\n
+detach
+quit
