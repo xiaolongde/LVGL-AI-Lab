@@ -1,0 +1,9 @@
+# terminal.tstyle — 软装 A
+# 改这个文件，重启板子或重跑 host sim 看效果
+bg           = 0x000000
+accent       = 0x00FF41
+fg_main      = 0x00FF41
+fg_secondary = 0x00B82E
+fg_muted     = 0x404040
+banner       = [user@watch ~]$ uptime
+sub_text     = (unused on terminal)

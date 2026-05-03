@@ -1,0 +1,8 @@
+# pixel.tstyle — 软装 B
+bg           = 0x101418
+accent       = 0x4FC3F7
+fg_main      = 0xE8EAED
+fg_secondary = 0x9AA0A6
+fg_muted     = 0x707070
+banner       = (unused on pixel)
+sub_text     = FRI  MAY 2

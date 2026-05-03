@@ -1,0 +1,8 @@
+# zen.tstyle — 软装 C
+bg           = 0x000000
+accent       = 0xD4A373
+fg_main      = 0xFFFFFF
+fg_secondary = 0x202020
+fg_muted     = 0x707070
+banner       = tuesday
+sub_text     = may 2  ·  2026

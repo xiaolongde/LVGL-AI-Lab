@@ -84,9 +84,12 @@ if(BUILD_HOST_SIM)
     target_link_libraries(lvgl PUBLIC user32 gdi32)
 
     # app source (no SD/FATFS/LCD code on host)
+    file(GLOB THEMES_SRC CONFIGURE_DEPENDS "${SRC_DIR}/themes/*.c")
     set(HOST_APP_SRC
         ${SRC_DIR}/main.c
         ${SRC_DIR}/hw_host.c
+        ${SRC_DIR}/desktop_logic.c
+        ${THEMES_SRC}
     )
 
     add_executable(lvgl-ai-lab-host ${HOST_APP_SRC})
@@ -175,6 +178,7 @@ file(GLOB APP_SRC CONFIGURE_DEPENDS
     "${SRC_DIR}/*.c"
     "${SRC_DIR}/bsp/*.c"
     "${SRC_DIR}/devices/*/*.c"
+    "${SRC_DIR}/themes/*.c"
     "${LV_PORT_DIR}/*.c"
 )
 # remove host-only file from MCU build

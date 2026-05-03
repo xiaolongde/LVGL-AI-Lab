@@ -1,6 +1,12 @@
 # LVGL-AI-Lab CHANGELOG
 
 ## [Unreleased]
+- **v0.3 / m2 + m3**: 代码层组件分离 + 软装迭代周期启动 — **跨平台同源运行 + PC 5s 闭环驱动设计精雕**。
+  - **m2 代码分层**：抽 desktop_logic.{c,h}（state + 主循环 + theme 轮播）+ themes/themes.h + 3 个 theme_*.c（独立 render）+ main.c 收成 30 行 boot wire。host build 无回归。**注**：AI 第一次理解错了"硬装/软装"为代码架构术语，被用户纠正 2 次后才对齐为产品节奏术语；m2 重构本身仍有价值（解耦控制层 vs 渲染层），但不是用户原意的"硬装"。
+  - **m3 软装数据化**：theme_style_t（colors + banner/sub_text）+ key=value parser + 每 theme 一个 .tstyle 文本文件 + install_style_if_missing 自装到 SD（v0.2 hands-off 延续）+ style_load(SD 优先，fallback 嵌入 default)。host (lv_fs_stdio) + MCU (lv_fs_fatfs) 都工作。改 .tstyle 不用重 build 即可换主题颜色。
+  - **ZEN 软装迭代 3 轮**（产品语义层精雕的真正"软装"）：第 1 轮微调用户"没差别"→ 第 2 轮激进升级（半弧 → 150×150 全圆 activity ring 包住时间 + indicator 8px 加粗 + fake batt 100→0→100 sweep 让状态色金/橙/红切换可见）"有差异"→ 第 3 轮（autonomous 模式连续推）：1Hz 重绘让 cursor 闪烁可见、TERMINAL 加 ASCII 边框 + 块字符 bar + 字段对齐、PIXEL 加 halo dot + 竖分隔线 + 字段对齐 + 低电警示色。
+  - **v0.3 北极星实证**：同份 src/themes/*.c 编译两 target，host PC 窗口 + MCU 板都跑同视觉。host build_host/ 5s 循环驱动设计精雕，MCU 主要用于真机视觉签收。MCU Flash 255724B (97.55%) RAM 40528B (82%)，host 3.1MB exe。
+  - 主要 lesson：(a) 术语 cross-domain ambiguity 必先 1 句确认（"硬装/软装"= 装修行业产品节奏 ≠ 软件架构）；(b) 软装迭代依赖 m1 host 闭环；(c) autonomous mode 业务语义层不入场。
 - **v0.3 / m1**: PC host simulator 跑通同源代码 — **开发循环 90s → 5s**。CMake `option(BUILD_HOST_SIM)` 控制双 target；抽 `src/hw.h` API (boot / disp_init / fs_init / font_path / delay / boot_log)，hw_mcu.c (现有 SDIO+ST7789+FATFS) + hw_host.c (Win32 stub + lv_windows_create_display 320×172 zoom 200%)。LVGL 自带 Windows native backend (user32/gdi32)，无需 SDL2 外部依赖。lv_conf.h 关键项加 #ifndef 守卫（LV_USE_FS_FATFS/STDIO、LV_USE_WINDOWS、LV_USE_OS、LV_USE_TEXTAREA/KEYBOARD/BUTTONMATRIX），cmake target_compile_definitions 可反转默认。montserrat_28.bin 自动 copy 到 build_host/，lv_fs_stdio letter='S' + path="./" 让 "S:/" 在 host 解析到 cwd → 同源 lv_binfont_create("S:/montserrat_28.bin") 在两 target 都工作。host build：MSYS2 mingw64 gcc 15.2.0，3.1MB exe。3 轮 build 修 LVGL 内部依赖（LV_USE_OS / textarea / include path）后跑通，sk 3 主题在 Windows 窗口轮播 ✅。
 - 立项 + design v0 APPROVED + bootstrap 骨架
 - v0.1 BACKLOG 重构为 2 张大卡（用户反馈"10 张拖沓"后简化）：Card 1 闭环调试系统 + Card 2 LVGL 表盘；卡内 sub-task 由 AI 自决
