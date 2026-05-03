@@ -110,7 +110,9 @@
  * - LV_OS_MQX
  * - LV_OS_SDL2
  * - LV_OS_CUSTOM */
+#ifndef LV_USE_OS
 #define LV_USE_OS   LV_OS_NONE
+#endif
 
 #if LV_USE_OS == LV_OS_CUSTOM
     #define LV_OS_CUSTOM_INCLUDE <stdint.h>
@@ -784,7 +786,9 @@
 
 #define LV_USE_BUTTON        1
 
+#ifndef LV_USE_BUTTONMATRIX
 #define LV_USE_BUTTONMATRIX        0
+#endif
 
 #define LV_USE_CALENDAR        0
 #if LV_USE_CALENDAR
@@ -813,7 +817,9 @@
 
 #define LV_USE_IMAGEBUTTON        0
 
+#ifndef LV_USE_KEYBOARD
 #define LV_USE_KEYBOARD        0
+#endif
 
 #define LV_USE_LABEL      1
 #if LV_USE_LABEL
@@ -856,7 +862,9 @@
 
 #define LV_USE_TABVIEW        0
 
+#ifndef LV_USE_TEXTAREA
 #define LV_USE_TEXTAREA   0   /**< Requires: lv_label */
+#endif
 #if LV_USE_TEXTAREA != 0
     #define LV_TEXTAREA_DEF_PWD_SHOW_TIME 1500    /**< [ms] */
 #endif
@@ -915,11 +923,17 @@
 #define LV_FS_DEFAULT_DRIVER_LETTER '\0'
 
 /** API for fopen, fread, etc. */
+#ifndef LV_USE_FS_STDIO
 #define LV_USE_FS_STDIO 0
+#endif
 #if LV_USE_FS_STDIO
-    #define LV_FS_STDIO_LETTER '\0'     /**< Set an upper-case driver-identifier letter for this driver (e.g. 'A'). */
-    #define LV_FS_STDIO_PATH ""         /**< Set the working directory. File/directory paths will be appended to it. */
-    #define LV_FS_STDIO_CACHE_SIZE 0    /**< >0 to cache this number of bytes in lv_fs_read() */
+    #ifndef LV_FS_STDIO_LETTER
+        #define LV_FS_STDIO_LETTER 'S'  /**< host sim: same 'S' as MCU FATFS so paths line up */
+    #endif
+    #ifndef LV_FS_STDIO_PATH
+        #define LV_FS_STDIO_PATH "./"   /**< current working dir */
+    #endif
+    #define LV_FS_STDIO_CACHE_SIZE 0
 #endif
 
 /** API for open, read, etc. */
@@ -939,7 +953,9 @@
 #endif
 
 /** API for FATFS (needs to be added separately). Uses f_open, f_read, etc. */
+#ifndef LV_USE_FS_FATFS
 #define LV_USE_FS_FATFS 1
+#endif
 #if LV_USE_FS_FATFS
     #define LV_FS_FATFS_LETTER 'S'      /**< 'S' for SD card */
     #define LV_FS_FATFS_PATH "0:"       /**< prefix prepended by lv_fs_fatfs.c — matches FATFS_LinkDriver path */
@@ -1420,7 +1436,9 @@
 #define LV_USE_NXP_ELCDIF   0
 
 /** LVGL Windows backend */
+#ifndef LV_USE_WINDOWS
 #define LV_USE_WINDOWS    0
+#endif
 
 /** LVGL UEFI backend */
 #define LV_USE_UEFI 0

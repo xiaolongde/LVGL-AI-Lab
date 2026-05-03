@@ -1,6 +1,7 @@
 # LVGL-AI-Lab CHANGELOG
 
 ## [Unreleased]
+- **v0.3 / m1**: PC host simulator 跑通同源代码 — **开发循环 90s → 5s**。CMake `option(BUILD_HOST_SIM)` 控制双 target；抽 `src/hw.h` API (boot / disp_init / fs_init / font_path / delay / boot_log)，hw_mcu.c (现有 SDIO+ST7789+FATFS) + hw_host.c (Win32 stub + lv_windows_create_display 320×172 zoom 200%)。LVGL 自带 Windows native backend (user32/gdi32)，无需 SDL2 外部依赖。lv_conf.h 关键项加 #ifndef 守卫（LV_USE_FS_FATFS/STDIO、LV_USE_WINDOWS、LV_USE_OS、LV_USE_TEXTAREA/KEYBOARD/BUTTONMATRIX），cmake target_compile_definitions 可反转默认。montserrat_28.bin 自动 copy 到 build_host/，lv_fs_stdio letter='S' + path="./" 让 "S:/" 在 host 解析到 cwd → 同源 lv_binfont_create("S:/montserrat_28.bin") 在两 target 都工作。host build：MSYS2 mingw64 gcc 15.2.0，3.1MB exe。3 轮 build 修 LVGL 内部依赖（LV_USE_OS / textarea / include path）后跑通，sk 3 主题在 Windows 窗口轮播 ✅。
 - 立项 + design v0 APPROVED + bootstrap 骨架
 - v0.1 BACKLOG 重构为 2 张大卡（用户反馈"10 张拖沓"后简化）：Card 1 闭环调试系统 + Card 2 LVGL 表盘；卡内 sub-task 由 AI 自决
 - KIT 资料解压 (D:\projects\GD\GD32F303RxT6 KIT\) + `docs/references/{INDEX, mcu, board, screens, sdk}.md` 资料库建立

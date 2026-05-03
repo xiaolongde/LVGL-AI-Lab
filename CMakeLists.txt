@@ -1,37 +1,120 @@
-# LVGL-AI-Lab — top-level CMake
+# LVGL-AI-Lab — top-level CMake (dual target: MCU + host PC simulator)
 #
-# 平台: GD32F303RCT6 (Cortex-M4F, 256K Flash, 48K SRAM, 120 MHz)
-# 工具链: arm-none-eabi-gcc 12.2 (走 cmake/arm-none-eabi.toolchain.cmake)
+# MCU build (default):
+#   cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.toolchain.cmake
+#   cmake --build build
+#
+# Host PC simulator build (LVGL Windows native backend, MinGW64):
+#   cmake -B build_host -G Ninja -DBUILD_HOST_SIM=ON \
+#         -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe
+#   cmake --build build_host
+#   ./build_host/lvgl-ai-lab-host.exe
 
 cmake_minimum_required(VERSION 3.20)
 
-project(lvgl-ai-lab
-    LANGUAGES C ASM
-    VERSION 0.1.0
-)
+option(BUILD_HOST_SIM "Build PC simulator (LVGL Windows backend) instead of MCU firmware" OFF)
+
+if(BUILD_HOST_SIM)
+    project(lvgl-ai-lab-host LANGUAGES C VERSION 0.1.0)
+else()
+    project(lvgl-ai-lab LANGUAGES C ASM VERSION 0.1.0)
+endif()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-# 没指定就走 Debug（开发友好）
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 # ---------------------------------------------------------------------------
-# 路径常量
+# Common paths
 # ---------------------------------------------------------------------------
-set(VENDOR_DIR  ${CMAKE_SOURCE_DIR}/vendor/gd32f30x)
 set(SRC_DIR     ${CMAKE_SOURCE_DIR}/src)
 set(LVGL_DIR    ${CMAKE_SOURCE_DIR}/external/lvgl)
 set(LV_PORT_DIR ${SRC_DIR}/lvgl_port)
+
+# ---------------------------------------------------------------------------
+# LVGL — common to both targets
+# ---------------------------------------------------------------------------
+file(GLOB_RECURSE LVGL_SRC CONFIGURE_DEPENDS
+    "${LVGL_DIR}/src/*.c"
+)
+
+add_library(lvgl STATIC ${LVGL_SRC})
+
+target_include_directories(lvgl PUBLIC
+    ${LVGL_DIR}
+    ${LV_PORT_DIR}
+)
+
+target_compile_definitions(lvgl PUBLIC
+    LV_CONF_INCLUDE_SIMPLE=1
+)
+
+target_compile_options(lvgl PRIVATE
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-unused-function
+    -Wno-sign-compare
+    -Wno-implicit-fallthrough
+    -Wno-shift-negative-value
+    -Wno-old-style-declaration
+    -Wno-pointer-sign
+    -Wno-type-limits
+)
+
+# =====================================================================
+# HOST PC SIMULATOR build
+# =====================================================================
+if(BUILD_HOST_SIM)
+    # tell lvgl + app to use Windows backend + stdio fs (NOT FATFS)
+    target_compile_definitions(lvgl PUBLIC
+        LV_USE_WINDOWS=1
+        LV_USE_OS=LV_OS_WINDOWS
+        LV_USE_FS_STDIO=1
+        LV_USE_FS_FATFS=0
+        LV_USE_TEXTAREA=1
+        LV_USE_KEYBOARD=1
+        LV_USE_BUTTONMATRIX=1
+    )
+
+    # link Win32 GUI libs into lvgl so the windows backend works
+    target_link_libraries(lvgl PUBLIC user32 gdi32)
+
+    # app source (no SD/FATFS/LCD code on host)
+    set(HOST_APP_SRC
+        ${SRC_DIR}/main.c
+        ${SRC_DIR}/hw_host.c
+    )
+
+    add_executable(lvgl-ai-lab-host ${HOST_APP_SRC})
+    target_compile_definitions(lvgl-ai-lab-host PRIVATE BUILD_HOST_SIM=1)
+    target_include_directories(lvgl-ai-lab-host PRIVATE ${SRC_DIR})
+    target_link_libraries(lvgl-ai-lab-host PRIVATE lvgl)
+
+    # copy montserrat_28.bin next to the .exe so lv_fs_stdio finds it
+    add_custom_command(TARGET lvgl-ai-lab-host POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/tools/font_out/montserrat_28.bin
+            $<TARGET_FILE_DIR:lvgl-ai-lab-host>/montserrat_28.bin
+        COMMENT "copy montserrat_28.bin -> $<TARGET_FILE_DIR:lvgl-ai-lab-host>"
+    )
+
+    return()  # done — skip MCU section below
+endif()
+
+# =====================================================================
+# MCU build (GD32F303RC + ST7789V3 + SD/FATFS)
+# =====================================================================
+set(VENDOR_DIR  ${CMAKE_SOURCE_DIR}/vendor/gd32f30x)
 set(FATFS_DIR   ${CMAKE_SOURCE_DIR}/external/fatfs)
 set(LINKER_FILE ${CMAKE_SOURCE_DIR}/linker/gd32f303rc.ld)
 set(STARTUP_FILE ${CMAKE_SOURCE_DIR}/startup/startup_gd32f303rc.S)
 
 # ---------------------------------------------------------------------------
-# Vendor: GD32F30x firmware library (CMSIS + standard_peripheral)
+# Vendor: GD32F30x firmware library
 # ---------------------------------------------------------------------------
 file(GLOB GD32_PERIPH_SRC CONFIGURE_DEPENDS
     "${VENDOR_DIR}/GD32F30x_standard_peripheral/Source/*.c"
@@ -49,70 +132,33 @@ target_include_directories(gd32f30x PUBLIC
     ${VENDOR_DIR}/CMSIS
     ${VENDOR_DIR}/CMSIS/GD/GD32F30x/Include
     ${VENDOR_DIR}/GD32F30x_standard_peripheral/Include
-    ${SRC_DIR}                              # gd32f30x_libopt.h 在这（被 lib 间接 include）
+    ${SRC_DIR}
 )
 
-# SoC family + clock 关键宏；PUBLIC 以让 link 该 lib 的 target 也拿到
 target_compile_definitions(gd32f30x PUBLIC
-    GD32F30X_HD                             # GD32F303RC 属于 HD (256K) 系列
-    HXTAL_VALUE=8000000U                    # 板上 HSE 8MHz（与 system_gd32f30x.c 一致）
+    GD32F30X_HD
+    HXTAL_VALUE=8000000U
 )
 
-# vendor 库自身的 -Wno 抑制（只对 lib 生效，不影响应用代码）
 target_compile_options(gd32f30x PRIVATE
     -Wno-unused-parameter
     -Wno-sign-compare
     -Wno-unused-variable
 )
 
-# ---------------------------------------------------------------------------
-# LVGL v9.5.0 (vendored as git submodule under external/lvgl)
-# ---------------------------------------------------------------------------
-file(GLOB_RECURSE LVGL_SRC CONFIGURE_DEPENDS
-    "${LVGL_DIR}/src/*.c"
-)
-
-add_library(lvgl STATIC ${LVGL_SRC})
-
-target_include_directories(lvgl PUBLIC
-    ${LVGL_DIR}                      # 让 application include "lvgl.h"
-    ${LV_PORT_DIR}                   # 让 lvgl 内部 #include "lv_conf.h" 找到我们的 config
-    ${FATFS_DIR}/inc                 # lv_fs_fatfs.c #include "ff.h"
-)
-
-target_compile_definitions(lvgl PUBLIC
-    LV_CONF_INCLUDE_SIMPLE=1         # use #include "lv_conf.h" instead of relative path
-)
-
-# 抑制 LVGL 自身的 -Wall 警告（vendor 代码，我们不改）
-target_compile_options(lvgl PRIVATE
-    -Wno-unused-parameter
-    -Wno-unused-variable
-    -Wno-unused-function
-    -Wno-sign-compare
-    -Wno-implicit-fallthrough
-    -Wno-shift-negative-value
-    -Wno-old-style-declaration
-    -Wno-pointer-sign
-    -Wno-type-limits
-)
+# LVGL needs ff.h on the MCU build
+target_include_directories(lvgl PUBLIC ${FATFS_DIR}/inc)
 
 # ---------------------------------------------------------------------------
-# FatFs R0.13c (vendored from KIT under external/fatfs)
+# FatFs R0.13c
 # ---------------------------------------------------------------------------
 file(GLOB FATFS_SRC CONFIGURE_DEPENDS
     "${FATFS_DIR}/src/*.c"
 )
 
 add_library(fatfs STATIC ${FATFS_SRC})
-
-target_include_directories(fatfs PUBLIC
-    ${FATFS_DIR}/inc
-)
-
-# fatfs needs to link gd32 (for gd32f30x.h transitively if our diskio uses it)
+target_include_directories(fatfs PUBLIC ${FATFS_DIR}/inc)
 target_link_libraries(fatfs PUBLIC gd32f30x)
-
 target_compile_options(fatfs PRIVATE
     -Wno-unused-parameter
     -Wno-unused-variable
@@ -131,6 +177,8 @@ file(GLOB APP_SRC CONFIGURE_DEPENDS
     "${SRC_DIR}/devices/*/*.c"
     "${LV_PORT_DIR}/*.c"
 )
+# remove host-only file from MCU build
+list(FILTER APP_SRC EXCLUDE REGEX ".*hw_host\\.c$")
 
 add_executable(lvgl-ai-lab.elf
     ${APP_SRC}
@@ -152,7 +200,6 @@ target_link_options(lvgl-ai-lab.elf PRIVATE
     -Wl,-Map=${CMAKE_BINARY_DIR}/lvgl-ai-lab.map,--cref
 )
 
-# 重新链接当 linker script 改时
 set_target_properties(lvgl-ai-lab.elf PROPERTIES
     LINK_DEPENDS ${LINKER_FILE}
 )
