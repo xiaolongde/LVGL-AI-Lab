@@ -25,5 +25,6 @@ const lv_font_t * font_pick(int px_size);
 void theme_terminal_render(lv_obj_t * scr, const desktop_state_t * st, const theme_style_t * style);
 void theme_pixel_render   (lv_obj_t * scr, const desktop_state_t * st, const theme_style_t * style);
 void theme_zen_render     (lv_obj_t * scr, const desktop_state_t * st, const theme_style_t * style);
+void theme_neon_render    (lv_obj_t * scr, const desktop_state_t * st, const theme_style_t * style);
 
 #endif

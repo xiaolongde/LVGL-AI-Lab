@@ -50,6 +50,17 @@ static const char DEFAULT_ZEN_TSTYLE[] =
     "font_main      = 32\n"
     "font_secondary = 18\n";
 
+static const char DEFAULT_NEON_TSTYLE[] =
+    "bg             = 0x000000\n"
+    "accent         = 0xFF1493\n"
+    "fg_main        = 0xFF6BC1\n"
+    "fg_secondary   = 0x8A2BE2\n"
+    "fg_muted       = 0x6A0DAD\n"
+    "banner         = NEON.SYS v2\n"
+    "sub_text       = ~~~ off the grid ~~~\n"
+    "font_main      = 32\n"
+    "font_secondary = 18\n";
+
 static void install_style_if_missing(const char * path, const char * content)
 {
     lv_fs_file_t fp;
@@ -66,6 +77,7 @@ static void install_style_if_missing(const char * path, const char * content)
 static theme_style_t s_term_style;
 static theme_style_t s_pixel_style;
 static theme_style_t s_zen_style;
+static theme_style_t s_neon_style;
 
 #ifdef BUILD_HOST_SIM
 int main(int argc, char ** argv)
@@ -96,15 +108,18 @@ int main(void)
     install_style_if_missing("S:/terminal.tstyle", DEFAULT_TERMINAL_TSTYLE);
     install_style_if_missing("S:/pixel.tstyle",    DEFAULT_PIXEL_TSTYLE);
     install_style_if_missing("S:/zen.tstyle",      DEFAULT_ZEN_TSTYLE);
+    install_style_if_missing("S:/neon.tstyle",     DEFAULT_NEON_TSTYLE);
 
     style_load(&s_term_style,  "S:/terminal.tstyle", DEFAULT_TERMINAL_TSTYLE);
     style_load(&s_pixel_style, "S:/pixel.tstyle",    DEFAULT_PIXEL_TSTYLE);
     style_load(&s_zen_style,   "S:/zen.tstyle",      DEFAULT_ZEN_TSTYLE);
+    style_load(&s_neon_style,  "S:/neon.tstyle",     DEFAULT_NEON_TSTYLE);
 
-    static const theme_descriptor_t themes[3] = {
+    static const theme_descriptor_t themes[4] = {
         { "TERMINAL", theme_terminal_render, &s_term_style  },
         { "PIXEL",    theme_pixel_render,    &s_pixel_style },
         { "ZEN",      theme_zen_render,      &s_zen_style   },
+        { "NEON",     theme_neon_render,     &s_neon_style  },
     };
 
 #ifdef BUILD_HOST_SIM
@@ -124,7 +139,7 @@ int main(void)
             lv_timer_handler();
             hw_delay(20);
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             lv_obj_clean(scr);
             themes[i].render(scr, &s, themes[i].style);
             for (int k = 0; k < 8; k++) { lv_timer_handler(); hw_delay(30); }
@@ -142,6 +157,6 @@ int main(void)
     }
 #endif
 
-    desktop_run(themes, 3);
+    desktop_run(themes, 4);
     return 0;
 }
