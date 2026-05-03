@@ -18,6 +18,7 @@
 #include "ff_gen_drv.h"
 #include "sd_diskio.h"
 #include "lv_port_disp.h"
+#include "rtc.h"
 
 extern void lv_fs_fatfs_init(void);
 extern const uint8_t  montserrat_28_bin_data[];
@@ -45,11 +46,18 @@ int hw_boot(void)
     LCD_Fill(0, 0, LCD_Width - 1, LCD_Height - 1, BLACK);
     POINT_COLOR = WHITE; BACK_COLOR = BLACK;
 
+    rtc_user_init();
+
     sd_card_info_struct info;
     if (sd_full_init(&info) != SD_OK) return -1;
     if (FATFS_LinkDriver(&sd_diskio_drv, s_path) != 0) return -2;
     if (f_mount(&s_fs, s_path, 1) != FR_OK) return -3;
     return 0;
+}
+
+void hw_get_time(uint8_t * hh, uint8_t * mm, uint8_t * ss)
+{
+    rtc_get_time(hh, mm, ss);
 }
 
 void hw_boot_log(int row, const char * msg)

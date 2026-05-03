@@ -35,4 +35,8 @@ const char * hw_font_path(void);
 /* sleep blocking for `ms` milliseconds */
 void hw_delay(uint32_t ms);
 
+/* current wall-clock time (24h). On MCU: backed by RTC LSE.
+   On host: Windows local time. */
+void hw_get_time(uint8_t * hh, uint8_t * mm, uint8_t * ss);
+
 #endif /* HW_H */

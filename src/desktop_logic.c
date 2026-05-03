@@ -29,15 +29,16 @@ void desktop_run(const theme_descriptor_t * themes, int n_themes)
         /* 1s wall = state tick + redraw (drives cursor blink, batt sweep, hr, etc) */
         if (tick_count - last_minute_tick >= 20) {
             last_minute_tick = tick_count;
-            g_state.mm++;
-            if (g_state.mm >= 60) {
-                g_state.mm = 0;
-                g_state.hh = (g_state.hh + 1) % 24;
-            }
+            /* real wall-clock from RTC (MCU) / GetLocalTime (host) */
+            uint8_t hh, mm, ss;
+            hw_get_time(&hh, &mm, &ss);
+            g_state.hh = hh;
+            g_state.mm = mm;
             g_state.uptime_s = tick_count / 20;
             g_state.steps += 7;
             g_state.hr = 65 + (tick_count % 30);
-            /* fake batt sweep 100→0→100 to expose state-color thresholds */
+            /* fake batt sweep 100→0→100 to expose state-color thresholds —
+               keep this fake until真传感器接入 (v0.3.1+) */
             {
                 static int batt_dir = -1;
                 g_state.batt += batt_dir * 5;

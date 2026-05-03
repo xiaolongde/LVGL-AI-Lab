@@ -60,4 +60,13 @@ const char * hw_font_path(void)
 
 void hw_delay(uint32_t ms) { Sleep(ms); }
 
+void hw_get_time(uint8_t * hh, uint8_t * mm, uint8_t * ss)
+{
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    *hh = (uint8_t)t.wHour;
+    *mm = (uint8_t)t.wMinute;
+    *ss = (uint8_t)t.wSecond;
+}
+
 #endif /* BUILD_HOST_SIM */
