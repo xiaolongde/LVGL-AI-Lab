@@ -66,6 +66,8 @@ int theme_style_parse(theme_style_t * out, const char * text, size_t len)
                 else if (key_eq(ks, ke, "fg_muted"))     out->fg_muted     = parse_hex(vs, ve);
                 else if (key_eq(ks, ke, "banner"))       copy_str(out->banner,   sizeof(out->banner),   vs, ve);
                 else if (key_eq(ks, ke, "sub_text"))     copy_str(out->sub_text, sizeof(out->sub_text), vs, ve);
+                else if (key_eq(ks, ke, "font_main"))    out->font_main      = (int)parse_hex(vs, ve);
+                else if (key_eq(ks, ke, "font_secondary")) out->font_secondary = (int)parse_hex(vs, ve);
                 /* unknown keys silently ignored */
             }
         }

@@ -33,6 +33,10 @@ typedef struct {
     /* string tokens */
     char banner[THEME_STR_MAX];   /* theme-specific banner / prompt */
     char sub_text[THEME_STR_MAX]; /* secondary line (date / weekday) */
+
+    /* font sizes (px) — resolved to lv_font_t* via font_pool at render time */
+    int font_main;       /* primary font: clock */
+    int font_secondary;  /* secondary font: sub-text / stat lines */
 } theme_style_t;
 
 /* parse a textual descriptor (in `text`, length `len`) into `out`.

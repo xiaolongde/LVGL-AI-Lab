@@ -78,6 +78,8 @@ if(BUILD_HOST_SIM)
         LV_USE_TEXTAREA=1
         LV_USE_KEYBOARD=1
         LV_USE_BUTTONMATRIX=1
+        # host: relax LV_MEM_SIZE so 5 binfonts (14/18/24/28/32) all fit
+        LV_MEM_SIZE=131072
     )
 
     # link Win32 GUI libs into lvgl so the windows backend works
@@ -97,13 +99,19 @@ if(BUILD_HOST_SIM)
     target_include_directories(lvgl-ai-lab-host PRIVATE ${SRC_DIR})
     target_link_libraries(lvgl-ai-lab-host PRIVATE lvgl)
 
-    # copy montserrat_28.bin next to the .exe so lv_fs_stdio finds it
-    add_custom_command(TARGET lvgl-ai-lab-host POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/tools/font_out/montserrat_28.bin
-            $<TARGET_FILE_DIR:lvgl-ai-lab-host>/montserrat_28.bin
-        COMMENT "copy montserrat_28.bin -> $<TARGET_FILE_DIR:lvgl-ai-lab-host>"
+    # copy all SD assets (fonts + tstyle) next to the .exe so lv_fs_stdio finds them
+    file(GLOB SD_ASSETS
+        "${CMAKE_SOURCE_DIR}/tools/font_out/*.bin"
     )
+    foreach(ASSET ${SD_ASSETS})
+        get_filename_component(ASSET_NAME ${ASSET} NAME)
+        add_custom_command(TARGET lvgl-ai-lab-host POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${ASSET}
+                $<TARGET_FILE_DIR:lvgl-ai-lab-host>/${ASSET_NAME}
+            COMMENT "SD asset: ${ASSET_NAME}"
+        )
+    endforeach()
 
     return()  # done — skip MCU section below
 endif()

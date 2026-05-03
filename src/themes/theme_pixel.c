@@ -30,7 +30,7 @@ void theme_pixel_render(lv_obj_t * scr, const desktop_state_t * st, const theme_
     char tbuf[8];
     sprintf(tbuf, "%02d:%02d", st->hh, st->mm);
     lv_obj_t * tlab = lv_label_create(scr);
-    if (font_big) lv_obj_set_style_text_font(tlab, font_big, 0);
+    lv_obj_set_style_text_font(tlab, font_pick(style->font_main), 0);
     lv_obj_set_style_text_color(tlab, lv_color_hex(style->fg_main), 0);
     lv_obj_set_style_text_letter_space(tlab, -2, 0);
     lv_label_set_text(tlab, tbuf);
@@ -65,12 +65,15 @@ void theme_pixel_render(lv_obj_t * scr, const desktop_state_t * st, const theme_
     lv_obj_clear_flag(sep, LV_OBJ_FLAG_SCROLLABLE);
 
     /* === right column stats — uniform spacing, accent letter === */
+    const lv_font_t * font_sec = font_pick(style->font_secondary);
+
     char l1[24], l2[24], l3[24];
     snprintf(l1, sizeof(l1), "%5d", st->steps);
     snprintf(l2, sizeof(l2), "%3d bpm", st->hr);
     snprintf(l3, sizeof(l3), "up %lus", (unsigned long)st->uptime_s);
 
     lv_obj_t * sl1 = lv_label_create(scr);
+    lv_obj_set_style_text_font(sl1, font_sec, 0);
     lv_obj_set_style_text_color(sl1, lv_color_hex(style->fg_main), 0);
     lv_label_set_text(sl1, l1);
     lv_obj_align(sl1, LV_ALIGN_RIGHT_MID, -16, -22);
@@ -79,15 +82,16 @@ void theme_pixel_render(lv_obj_t * scr, const desktop_state_t * st, const theme_
     lv_obj_set_style_text_color(lbl1, lv_color_hex(style->fg_secondary), 0);
     lv_obj_set_style_text_letter_space(lbl1, 1, 0);
     lv_label_set_text(lbl1, "STEPS");
-    lv_obj_align(lbl1, LV_ALIGN_RIGHT_MID, -16, -38);
+    lv_obj_align(lbl1, LV_ALIGN_RIGHT_MID, -16, -42);
 
     lv_obj_t * sl2 = lv_label_create(scr);
+    lv_obj_set_style_text_font(sl2, font_sec, 0);
     lv_obj_set_style_text_color(sl2, lv_color_hex(style->fg_main), 0);
     lv_label_set_text(sl2, l2);
-    lv_obj_align(sl2, LV_ALIGN_RIGHT_MID, -16, 6);
+    lv_obj_align(sl2, LV_ALIGN_RIGHT_MID, -16, 8);
 
     lv_obj_t * sl3 = lv_label_create(scr);
     lv_obj_set_style_text_color(sl3, lv_color_hex(style->fg_secondary), 0);
     lv_label_set_text(sl3, l3);
-    lv_obj_align(sl3, LV_ALIGN_RIGHT_MID, -16, 22);
+    lv_obj_align(sl3, LV_ALIGN_RIGHT_MID, -16, 28);
 }

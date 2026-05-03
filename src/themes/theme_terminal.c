@@ -61,7 +61,7 @@ void theme_terminal_render(lv_obj_t * scr, const desktop_state_t * st, const the
     char tbuf[8];
     sprintf(tbuf, "%02d:%02d", st->hh, st->mm);
     lv_obj_t * tlab = lv_label_create(scr);
-    if (font_big) lv_obj_set_style_text_font(tlab, font_big, 0);
+    lv_obj_set_style_text_font(tlab, font_pick(style->font_main), 0);
     lv_obj_set_style_text_color(tlab, lv_color_hex(style->fg_main), 0);
     lv_obj_set_style_text_letter_space(tlab, -1, 0);
     lv_label_set_text(tlab, tbuf);

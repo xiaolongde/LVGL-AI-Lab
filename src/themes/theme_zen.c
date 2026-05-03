@@ -35,24 +35,25 @@ void theme_zen_render(lv_obj_t * scr, const desktop_state_t * st, const theme_st
     lv_obj_align(arc, LV_ALIGN_CENTER, 0, 0);
     lv_obj_clear_flag(arc, LV_OBJ_FLAG_CLICKABLE);
 
-    /* === clock — sits inside the ring === */
+    /* === clock — sits inside the ring, big font from style === */
     char tbuf[8];
     sprintf(tbuf, "%02d:%02d", st->hh, st->mm);
     lv_obj_t * tlab = lv_label_create(scr);
-    if (font_big) lv_obj_set_style_text_font(tlab, font_big, 0);
+    lv_obj_set_style_text_font(tlab, font_pick(style->font_main), 0);
     lv_obj_set_style_text_color(tlab, lv_color_hex(style->fg_main), 0);
     lv_obj_set_style_text_letter_space(tlab, -3, 0); /* 戏剧性紧凑 */
     lv_label_set_text(tlab, tbuf);
     lv_obj_align(tlab, LV_ALIGN_CENTER, 0, -4);
 
-    /* === battery % below clock, inside the ring === */
+    /* === battery % below clock — uses font_secondary from style === */
     char b[16];
     sprintf(b, "%d%%", st->batt);
     lv_obj_t * bl = lv_label_create(scr);
+    lv_obj_set_style_text_font(bl, font_pick(style->font_secondary), 0);
     lv_obj_set_style_text_color(bl, accent, 0);
     lv_obj_set_style_text_letter_space(bl, 1, 0);
     lv_label_set_text(bl, b);
-    lv_obj_align(bl, LV_ALIGN_CENTER, 0, 22);
+    lv_obj_align(bl, LV_ALIGN_CENTER, 0, 28);
 
     /* === weekday top, far from ring === */
     lv_obj_t * day = lv_label_create(scr);

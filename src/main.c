@@ -1,7 +1,6 @@
 /*!
     \file    main.c
-    \brief   v0.3 m3: 软装从 S:/<theme>.tstyle 加载，缺失则用嵌入 default
-             并自装到 SD（hands-off）
+    \brief   v0.3 + 多 size 字体 SD 加载（5 fonts in font_pool）
 */
 
 #include "hw.h"
@@ -15,38 +14,40 @@
 #include <stdio.h>
 #include <string.h>
 
-lv_font_t * font_big = NULL;
-
-/* embedded defaults — one string per theme, identical to tools/styles/*.tstyle */
+/* embedded defaults — written to SD on first boot if missing */
 static const char DEFAULT_TERMINAL_TSTYLE[] =
-    "bg           = 0x000000\n"
-    "accent       = 0x00FF41\n"
-    "fg_main      = 0x00FF41\n"
-    "fg_secondary = 0x00B82E\n"
-    "fg_muted     = 0x404040\n"
-    "banner       = [user@watch ~]$ uptime\n"
-    "sub_text     = (unused on terminal)\n";
+    "bg             = 0x000000\n"
+    "accent         = 0x00FF41\n"
+    "fg_main        = 0x00FF41\n"
+    "fg_secondary   = 0x00B82E\n"
+    "fg_muted       = 0x404040\n"
+    "banner         = [user@watch ~]$ uptime\n"
+    "sub_text       = (unused on terminal)\n"
+    "font_main      = 28\n"
+    "font_secondary = 14\n";
 
 static const char DEFAULT_PIXEL_TSTYLE[] =
-    "bg           = 0x101418\n"
-    "accent       = 0x4FC3F7\n"
-    "fg_main      = 0xE8EAED\n"
-    "fg_secondary = 0x9AA0A6\n"
-    "fg_muted     = 0x707070\n"
-    "banner       = (unused on pixel)\n"
-    "sub_text     = FRI  MAY 2\n";
+    "bg             = 0x101418\n"
+    "accent         = 0x4FC3F7\n"
+    "fg_main        = 0xE8EAED\n"
+    "fg_secondary   = 0x9AA0A6\n"
+    "fg_muted       = 0x707070\n"
+    "banner         = (unused on pixel)\n"
+    "sub_text       = FRI  MAY 2\n"
+    "font_main      = 28\n"
+    "font_secondary = 18\n";
 
 static const char DEFAULT_ZEN_TSTYLE[] =
-    "bg           = 0x000000\n"
-    "accent       = 0xD4A373\n"
-    "fg_main      = 0xFFFFFF\n"
-    "fg_secondary = 0x202020\n"
-    "fg_muted     = 0x707070\n"
-    "banner       = tuesday\n"
-    "sub_text     = may 2  \xC2\xB7  2026\n";
+    "bg             = 0x000000\n"
+    "accent         = 0xD4A373\n"
+    "fg_main        = 0xFFFFFF\n"
+    "fg_secondary   = 0x202020\n"
+    "fg_muted       = 0x707070\n"
+    "banner         = tuesday\n"
+    "sub_text       = may 2  \xC2\xB7  2026\n"
+    "font_main      = 32\n"
+    "font_secondary = 18\n";
 
-/* hands-off: write embedded default to "S:/x.tstyle" if not already there.
-   works on both targets via lv_fs (MCU = lv_fs_fatfs, host = lv_fs_stdio). */
 static void install_style_if_missing(const char * path, const char * content)
 {
     lv_fs_file_t fp;
@@ -80,9 +81,13 @@ int main(void)
     hw_lv_disp_init();
     hw_lv_fs_init();
 
-    font_big = lv_binfont_create(hw_font_path());
+    /* load 5 fonts into the global pool — best-effort, missing files OK */
+    g_fonts.f14 = lv_binfont_create("S:/montserrat_14.bin");
+    g_fonts.f18 = lv_binfont_create("S:/montserrat_18.bin");
+    g_fonts.f24 = lv_binfont_create("S:/montserrat_24.bin");
+    g_fonts.f28 = lv_binfont_create("S:/montserrat_28.bin");
+    g_fonts.f32 = lv_binfont_create("S:/montserrat_32.bin");
 
-    /* hands-off install + load styles */
     install_style_if_missing("S:/terminal.tstyle", DEFAULT_TERMINAL_TSTYLE);
     install_style_if_missing("S:/pixel.tstyle",    DEFAULT_PIXEL_TSTYLE);
     install_style_if_missing("S:/zen.tstyle",      DEFAULT_ZEN_TSTYLE);
@@ -96,7 +101,6 @@ int main(void)
         { "PIXEL",    theme_pixel_render,    &s_pixel_style },
         { "ZEN",      theme_zen_render,      &s_zen_style   },
     };
-    /* the array is const but the styles inside are static globals → OK */
     desktop_run(themes, 3);
 
     return 0;
