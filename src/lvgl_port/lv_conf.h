@@ -1117,7 +1117,9 @@
 /* Documentation for several of the below items can be found here: https://docs.lvgl.io/master/auxiliary-modules/index.html . */
 
 /** 1: Enable API to take snapshot for object */
+#ifndef LV_USE_SNAPSHOT
 #define LV_USE_SNAPSHOT 0
+#endif
 
 /** 1: Enable system monitor component */
 #define LV_USE_SYSMON   0

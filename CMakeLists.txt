@@ -78,8 +78,10 @@ if(BUILD_HOST_SIM)
         LV_USE_TEXTAREA=1
         LV_USE_KEYBOARD=1
         LV_USE_BUTTONMATRIX=1
-        # host: relax LV_MEM_SIZE so 5 binfonts (14/18/24/28/32) all fit
-        LV_MEM_SIZE=131072
+        # host: relax LV_MEM_SIZE — 5 binfonts (~50K) + snapshot buf 108K + slack
+        LV_MEM_SIZE=1048576
+        # host: enable snapshot for golden-image auto-verify
+        LV_USE_SNAPSHOT=1
     )
 
     # link Win32 GUI libs into lvgl so the windows backend works
@@ -91,6 +93,7 @@ if(BUILD_HOST_SIM)
         ${SRC_DIR}/main.c
         ${SRC_DIR}/hw_host.c
         ${SRC_DIR}/desktop_logic.c
+        ${SRC_DIR}/snapshot_util.c
         ${THEMES_SRC}
     )
 

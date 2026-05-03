@@ -1,6 +1,8 @@
 # LVGL-AI-Lab CHANGELOG
 
 ## [Unreleased]
+- **v0.3 / m4**: golden image 自动验收 — **v0.2 北极星完成另一半（hands-off 视觉验收）**。`snapshot_util.{c,h}` 用 lv_snapshot_take(scr, RGB565) → 转 RGB888 → 写 PPM (P6 binary，无 libpng 依赖)。`main.c --snapshot <dir>` mode：固定 fake state、3 主题各渲染 + 截屏 → 退出。`tools/golden/*.ppm` baseline + `tools/auto_verify.py`（纯 stdlib，~70 行 mean/max abs diff）+ `tools/auto-verify.sh` 一键 build+snap+diff。完整闭环：cmake build → cd build_host && exe --snapshot → python verify → PASS/FAIL。**完整像素匹配** baseline = baseline 时 mean=0 max=0 PASS。host LV_USE_SNAPSHOT=1 + LV_MEM_SIZE 128K → 1MB（snapshot 108K + 5 fonts 50K + slack）。**用法**：每次改 theme/style，commit 前 `bash tools/auto-verify.sh`，AI/CI 自动判断有无视觉回归，零用户介入。**坑**：(a) lv_snapshot OOM 时静默返 NULL（又是 LXO38R 系列 LVGL alloc 静默失败）；(b) mingw windowed exe 在 git bash 下 stdout 不可靠 → 写日志文件诊断。
+- **v0.3 / 多 size 字体 SD 加载**: 用 npx lv_font_conv 生成 14/18/24/28/32 五个 size .bin → 全部 SD 加载 + cmake auto-copy 到 build_host/。font_pool_t 统一管理，font_pick(px) 解析；theme_style_t 加 font_main / font_secondary 字段；ZEN 主时间 28→32 px、副信息 18px；PIXEL stats 18px；TERMINAL stat 14px。.tstyle 改 px 数字即换字号，不重 build。LV_MEM_SIZE host overrideable（host 加大装下多字体）。
 - **v0.3 / m2 + m3**: 代码层组件分离 + 软装迭代周期启动 — **跨平台同源运行 + PC 5s 闭环驱动设计精雕**。
   - **m2 代码分层**：抽 desktop_logic.{c,h}（state + 主循环 + theme 轮播）+ themes/themes.h + 3 个 theme_*.c（独立 render）+ main.c 收成 30 行 boot wire。host build 无回归。**注**：AI 第一次理解错了"硬装/软装"为代码架构术语，被用户纠正 2 次后才对齐为产品节奏术语；m2 重构本身仍有价值（解耦控制层 vs 渲染层），但不是用户原意的"硬装"。
   - **m3 软装数据化**：theme_style_t（colors + banner/sub_text）+ key=value parser + 每 theme 一个 .tstyle 文本文件 + install_style_if_missing 自装到 SD（v0.2 hands-off 延续）+ style_load(SD 优先，fallback 嵌入 default)。host (lv_fs_stdio) + MCU (lv_fs_fatfs) 都工作。改 .tstyle 不用重 build 即可换主题颜色。

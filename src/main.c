@@ -10,9 +10,11 @@
 #include "desktop_logic.h"
 #include "themes/themes.h"
 #include "themes/style_loader.h"
+#include "snapshot_util.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 /* embedded defaults — written to SD on first boot if missing */
 static const char DEFAULT_TERMINAL_TSTYLE[] =
@@ -65,7 +67,11 @@ static theme_style_t s_term_style;
 static theme_style_t s_pixel_style;
 static theme_style_t s_zen_style;
 
+#ifdef BUILD_HOST_SIM
+int main(int argc, char ** argv)
+#else
 int main(void)
+#endif
 {
     int boot_rc = hw_boot();
     if (boot_rc != 0) {
@@ -81,7 +87,6 @@ int main(void)
     hw_lv_disp_init();
     hw_lv_fs_init();
 
-    /* load 5 fonts into the global pool — best-effort, missing files OK */
     g_fonts.f14 = lv_binfont_create("S:/montserrat_14.bin");
     g_fonts.f18 = lv_binfont_create("S:/montserrat_18.bin");
     g_fonts.f24 = lv_binfont_create("S:/montserrat_24.bin");
@@ -101,7 +106,42 @@ int main(void)
         { "PIXEL",    theme_pixel_render,    &s_pixel_style },
         { "ZEN",      theme_zen_render,      &s_zen_style   },
     };
-    desktop_run(themes, 3);
 
+#ifdef BUILD_HOST_SIM
+    /* --snapshot <dir>: 渲染每个 theme 一次 → 抓 PPM → 退出 */
+    if (argc >= 3 && strcmp(argv[1], "--snapshot") == 0) {
+        const char * dir = argv[2];
+        char log_path[256];
+        snprintf(log_path, sizeof(log_path), "%s/_snapshot.log", dir);
+        FILE * lf = fopen(log_path, "w");
+        if (lf) fprintf(lf, "snapshot mode start, dir=%s\n", dir);
+        /* fixed fake state for reproducible snapshots */
+        desktop_state_t s = { .hh = 12, .mm = 34, .steps = 8423,
+                              .hr = 72, .batt = 87, .uptime_s = 42 };
+        lv_obj_t * scr = lv_screen_active();
+        /* let LVGL display flush at least once before snapshot */
+        for (int warmup = 0; warmup < 3; warmup++) {
+            lv_timer_handler();
+            hw_delay(20);
+        }
+        for (int i = 0; i < 3; i++) {
+            lv_obj_clean(scr);
+            themes[i].render(scr, &s, themes[i].style);
+            for (int k = 0; k < 8; k++) { lv_timer_handler(); hw_delay(30); }
+            lv_obj_update_layout(scr);
+            int32_t w = lv_obj_get_width(scr);
+            int32_t h = lv_obj_get_height(scr);
+            if (lf) { fprintf(lf, "[%d] scr w=%ld h=%ld\n", i, (long)w, (long)h); fflush(lf); }
+            char path[256];
+            snprintf(path, sizeof(path), "%s/%s.ppm", dir, themes[i].name);
+            int rc = snapshot_screen_to_ppm(path);
+            if (lf) { fprintf(lf, "[snapshot] %s -> rc=%d\n", path, rc); fflush(lf); }
+        }
+        if (lf) { fprintf(lf, "snapshot mode done\n"); fclose(lf); }
+        return 0;
+    }
+#endif
+
+    desktop_run(themes, 3);
     return 0;
 }
